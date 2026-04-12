@@ -90,8 +90,48 @@ void addOrder(order **headO){
 	}
 	printf("\n====SUCCESS ADD ORDER====\n");
 }
+//sap xep nam, thang, ngay
+int compareDate(DATE d1, DATE d2){
+	if(d1.year != d2.year) return d1.year - d2.year;
+	else if(d1.month != d2.month) return d1.month - d2.month;
+	return d1.day - d2.day;
+}
+//Sap xep danh sach don theo ngay giao hang
+void SortOrder(order **head){
+	if(*head == NULL) return;
+	for(order *i = *head; i->next != NULL; i = i->next){
+		for(order *j = i->next; j != NULL; j = j->next){
+			if(compareDate(i->date, j->date)>0){
+				order *nextI = i->next;//luu lai con bien i dang tro toi dau
+				order *nextJ = j->next;
+				//swap
+				order temp = *i;
+				*i = *j;
+				*j = temp;
+				//tra lai vi tri tro that su
+				i->next = nextI;
+				j->next = nextJ;
+			}	
+		}
+	}
+	printf("\n======SUCCESS SORT======\n");
+}
+void FindOrder(order **head){
+	char codeFind[5];
+	printf("Input code find: ");
+	scanf("%s", codeFind);
+	order *temp = *head;
+	while(temp != NULL){
+		if(strcmp(temp->code, codeFind) == 0){
+			printf("The search unit exists\n");
+			return;
+		}
+		temp = temp->next;
+	}
+	printf("No find order\n");
+}
 //Cap nhat don hang vao file
-void UpdateOrder(order **headO){
+void SaveOrder(order **headO){
 	FILE *f;
 	f = fopen("Order_Information.txt", "a");
 	if(f==NULL){
@@ -103,7 +143,7 @@ void UpdateOrder(order **headO){
 	fseek(f, 0, SEEK_END);
 	long size = ftell(f);
 	if(size==0){
-		fprintf(f, "%-5s || %-10s || %-20s || %-3s || %-3s || %-6s || %-10s || %-10s || %-10s || %-10s\n",
+		fprintf(f, "%-5s || %-20s || %-20s || %-3s || %-3s || %-6s || %-10s || %-10s || %-10s || %-10s\n",
 				"Code", "Order Name", "Customer Name", "X", "Y", "Weight", "Date", "Fee", "Priority", "Status");
 	}
 	int count = 0;
@@ -114,7 +154,7 @@ void UpdateOrder(order **headO){
 	}
 	while(temp != NULL){
 		if(temp->isSaved==0){
-			fprintf(f, "%-5s || %-10s || %-20s || %-3d || %-3d || %-6.2lf || %02d/%02d/%04d || %-10.2lf || %-10s || %-10s\n"
+			fprintf(f, "%-5s || %-20s || %-20s || %-3d || %-3d || %-6.2lf || %02d/%02d/%04d || %-10.2lf || %-10s || %-10s\n"
 					,temp->code, temp->orderName, temp->customerName, temp->x, temp->y, temp->weight, temp->date.day, 
 					temp->date.month, temp->date.year,temp->fee, (temp->priority==1) ? "Express" : "Normal", Status[temp->status]);
 			temp->isSaved = 1;
@@ -128,28 +168,13 @@ void UpdateOrder(order **headO){
 	printf("\n===There are %d orders in the file===\n", count);//Co %d don hang duoc nhap vao file
 	else printf("\n===No orders have been entered into the file\n");//Khong co don hang nao duoc nhap vao file
 }
-//Hien thi danh sach cho(ton kho) cua don hang
-void DisplayOrderPending(order **headO){
-	order *temp = *headO;
-	if(temp!=NULL)
-		printf("%-20s %-20s\n", "Customer Name", "Order Name");
-	else{
-		printf("\nNo Display Order Pending\n");
-	}
-	while(temp != NULL){
-		if(temp->status==0){
-			printf("%-20s %-20s\n", temp->customerName, temp->orderName);
-		}
-		temp = temp->next;
-	}
-}
 //OPTION 1
 int Order_Management(order **headO, shipper **headS){
 	int countChoice = 0;
 	int choiceTwo;
 	printf("\n1. Add a new order"
-			"\n2. Display the list of pending orders"
-			"\n3. Update the order to the file\n\n");
+			"\n2. Sort order date"
+			"\n3. Find order\n\n");
 	do{
 		if(countChoice==3){
 			return -1;
@@ -163,10 +188,10 @@ int Order_Management(order **headO, shipper **headS){
 			addOrder(headO);
 			break;
 		case 2:
-			DisplayOrderPending(headO);
+			SortOrder(headO);
 			break;	
 		case 3:
-			UpdateOrder(headO);
+			FindOrder(headO);
 			break;
 	}
 }
@@ -218,21 +243,6 @@ int Statistics_and_Reports(order **headO, shipper **headS){
 		++countChoice;
 	}while(choiceTwo>3 || choiceTwo<1);		
 }
-//OPTION 5
-int System_Menu(order **headO, shipper **headS){
-	int choiceTwo;
-	int countChoice = 0;
-	printf("\n1. Save the data to a file"
-			"\n2. Load data from a file at startup\n\n");
-	do{
-		if(countChoice==3){
-			return -1;
-		}
-		printf("Enter your choice(1-2): ");
-		scanf("%d", &choiceTwo);
-		++countChoice;
-	}while(choiceTwo>2 || choiceTwo<1);
-}
 void Option(){
 	printf("================================================\n");
 	printf("= %-44s =\n", "    SMART DELIVERY AND MANAGEMENT SYSTEM");
@@ -241,25 +251,46 @@ void Option(){
 	printf("= %-44s =\n", "[2]. SHIPPER MANAGEMENT");
 	printf("= %-44s =\n", "[3]. SMART COORDINATION");
 	printf("= %-44s =\n", "[4]. STATISTICS AND REPORTS");
-	printf("= %-44s =\n", "[5]. SYSTEM MENU");
 	printf("= %-44s =\n", "[0]. EXIT PROGRAM");
 	printf("================================================\n");
+}
+//giai phong bo nho order
+void freeOrder(order **headO){
+	order *temp;
+	while(*headO != NULL){
+		temp = *headO;
+		*headO = (*headO)->next;
+		free(temp);
+	}
+}
+//giai phong bo nho shipper
+void freeShipper(shipper **headS){
+	shipper *temp;
+	while(*headS != NULL){
+		temp = *headS;
+		*headS = (*headS)->next;
+		free(temp);
+	}
 }
 //thuc hien chon de thuc hien va dieu kien neu nhap dung thi thuc hien, sai thi cho nhap lai
 //sai qua 3 lan thi khoa tai khoan		
 void SelectOption(order **headO, shipper **headS){
 	int choice, choiceTwo;
 	int countChoice = 0;
-	int (*Select[5])(order**, shipper**) = {Order_Management, Shipper_Management, Smart_Coordination, Statistics_and_Reports, System_Menu};
+	int (*Select[4])(order**, shipper**) = {Order_Management, Shipper_Management, Smart_Coordination, Statistics_and_Reports};
 	while(1){
 		Option();
-		printf("Enter your choice(1-5): ");
+		printf("Enter your choice(0-4): ");
 		scanf("%d", &choice);
 		if(choice==0){
-			printf("\nExit Program...GoodBye!");
+			SaveOrder(headO);
+			freeOrder(headO);
+			freeShipper(headS);
+			printf("\n====SUCCESS FREE MEMORY====\n");
+			printf("\n====EXIT PROGRAM...GOOD BYE!====");
 			return;
 		}
-		else if(choice>=1 && choice<=5){
+		else if(choice>=1 && choice<=4){
 			int check = Select[choice-1](headO, headS);
 			countChoice = 0;
 			if(check==-1){
