@@ -128,16 +128,15 @@ void missionShipper (order **headO,shipper **headS){
 	}
 }	
 
+//mô phỏng he thong cap nhat don hang moi 8h
 void simulate (order **headO,shipper **headS){
-	int time = 0;
 	while (1){
 		numberOfOrders(headO,headS);
 		missionShipper(headO,headS);
 		
 		informationShipper(headS);
-		
-		time+=8;
-		Sleep(1000);
+		//mô phong 1 phut = 8 tieng;
+		Sleep(60000);
 	}
 }
 
