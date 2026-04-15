@@ -100,7 +100,7 @@ void numberOfOrders (order **headO,shipper **headS){
 		S->numberOrder=0;
 		order *O=*headO;// Do lại tu dau den cuoi
 		while (O!=NULL){
-			if (O->weight <= W && O->status==0){
+			if (O->weight <= W && O->status==0 && S->status==0){
 				W=W-O->weight;
 				S->numberOrder++;
 				O->status=1;
