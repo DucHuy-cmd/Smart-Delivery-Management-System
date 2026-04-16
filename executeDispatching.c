@@ -1,0 +1,66 @@
+#include<stdlib.h>
+
+void executeDispatching(order **headO, shipper ** headS){
+	if(*headO == NULL || *headS == NULL){                          // Kiem tra danh sach order hoac shipper co trong khong
+		printf("[WARRING] List is emty!");
+		return;
+	}
+
+	printf("\n===START SMART DISPATCHING===\n");
+	order *expressOrders = NULL, *normalOrders = NULL;
+	order *temp = *headO;
+
+	while(temp != NULL){                                            // Phan loai don hang hoa toc va don hang binh thuong
+		if(temp->status == 0){                                      // Chi dieu phoi don hang chua giao (status == 0)
+			if(temp->priority == 1){                                // Kiem tra don hang hoa toc (priority == 1)
+				order *newNode = (order*)malloc(sizeof(order));     // Tao node moi cho danh sach don hoa toc
+				*newNode = *temp;
+				newNode->next = expressOrders;
+				expressOrders = newNode;
+			}
+			else{                                                   // Don hang binh thuong (priority == 0)
+				order *newNode = (order*)malloc(sizeof(order));     // Tao node moi cho danh sach don binh thuong
+				*newNode = *temp;
+				newNode->next = normalOrders;
+				normalOrders = newNode;
+			}
+		}
+		temp = temp->next;
+	}
+
+	shipper *expresShipper = *headS;                               // Dieu phoi don hang hoa toc cho shipper hoa toc
+	while(expresShipper != NULL && expresShipper->prioritySP != 1){ // Tim shipper hoa toc dau tien (prioritySP == 1)
+		expresShipper = expresShipper->next;
+	}
+
+	if(expresShipper != NULL){                                      // Neu tim thay shipper hoa toc thi dieu phoi tat ca don hoa toc
+		temp = expressOrders;
+		int count = 0;
+		while(temp != NULL){
+			expresShipper->numberOrder++;                          // Tang so luong don hang cua shipper
+			expresShipper->weight += temp->weight;                 // Cong trong luong don hang vao trong luong shipper
+			temp->status = 1;                                       // Thay doi trang thai thanh "Dang giao" (1)
+			count++;
+			temp = temp->next;
+		}
+		printf("Assigned %d express orders to shipper %s\n", count, expresShipper->Name);
+	}
+
+	shipper *normalShipper = *headS;                               // Dieu phoi don binh thuong cho shipper binh thuong
+	while(normalShipper != NULL && normalShipper->prioritySP != 0){ // Tim shipper binh thuong dau tien (prioritySP == 0)
+		normalShipper = normalShipper->next;
+	}
+
+	if(normalShipper != NULL){                                      // Neu tim thay shipper binh thuong thi dieu phoi tat ca don binh thuong
+		temp = normalOrders;
+		int count = 0;
+		while(temp != NULL){
+			normalShipper->numberOrder++;                          // Tang so luong don hang cua shipper
+			normalShipper->weight += temp->weight;                 // Cong trong luong don hang vao trong luong shipper
+			temp->status = 1;                                       // Thay doi trang thai thanh "Dang giao" (1)
+			count++;
+			temp = temp->next;
+		}
+		printf("Assigned %d normal orders to shipper %s\n", count, normalShipper->Name);
+	}
+}
