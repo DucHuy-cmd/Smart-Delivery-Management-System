@@ -1,3 +1,5 @@
+#include <time.h>    // dung cho rand() va srand() de random
+
 // chuc nang 1: chi tim shipper gan nhat (khong lam thay doi du lieu)
 void findNearestShipper(order **headO, shipper **headS) {
     // kiem tra xem he thong co du lieu chua
