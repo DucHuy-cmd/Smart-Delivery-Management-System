@@ -23,11 +23,6 @@ shipper *CreateShipper (){
     scanf ("%lf",&newShipper->weight);
     while (getchar() != '\n');
     
-    //Nhập lượng đơn hàng đã nhận;
-    printf ("Enter Your Order Number: ");
-    scanf ("%d",&newShipper->numberOrder);
-    while (getchar() != '\n');
-    
     //Phan loai shipper 0: Hỏa tốc, 1: bình thường 
     printf ("Enter Your Shipper Type: ");
     scanf ("%d",&newShipper->prioritySP);
@@ -38,7 +33,8 @@ shipper *CreateShipper (){
     
     //Nhận Mã shipper
     sprintf (newShipper->code,"SP%02d",N0S++);
-    
+	
+	newShipper->numberOrder=0;
     newShipper->x=0;
     newShipper->y=0;
     printf ("\n");
