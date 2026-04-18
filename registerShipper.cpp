@@ -1,7 +1,5 @@
-void registerShipper (shipper **headS);
-void numberOfOrders (order **headO,shipper **headS);
-void statusShipper (shipper **headS);
-
+int Shipper_Management(order **headO, shipper **headS);
+void registerShipper (order **headO, shipper **headS);
 static int N0S=1;
 //Mỗi 1 shipper là 1 Node chưa dc liên kết
 //Mỗi 1 Node này cần dc điền Thông tin
@@ -39,6 +37,7 @@ shipper *CreateShipper (){
     //Nhận Mã shipper
     sprintf (newShipper->code,"SP%02d",N0S++);
     
+    newShipper->status=0;
     newShipper->x=0;
     newShipper->y=0;
     printf ("\n");
@@ -64,7 +63,7 @@ void informationShipper (shipper **headS){
 	fclose(S);
 }
 
-void registerShipper (shipper **headS){
+void registerShipper (order **headO, shipper **headS){
     shipper *Tail = *headS;
 	while (Tail && Tail->next != NULL){
     	Tail = Tail->next;
@@ -101,7 +100,7 @@ void registerShipper (shipper **headS){
     Shipper_Management(headO,headS);
 }
 
-void deleteShipper (shipper **headS){
+void deleteShipper (order **headO,shipper **headS){
     if (*headS ==NULL){
         printf ("List is empty");
         return;
@@ -144,6 +143,7 @@ void deleteShipper (shipper **headS){
     while (c!='\r'){
         c=getch();
     }
+    informationShipper (headS);
     Shipper_Management(headO,headS);
 }
 
@@ -163,10 +163,10 @@ int Shipper_Management(order **headO, shipper **headS){
 	}while(choiceTwo>3 || choiceTwo<1);
 	switch(choiceTwo){
 		case 1: 
-			registerShipper(headS);
+			registerShipper(headO,headS);
 			break;
 		case 2:
-		    deleteShipper(headS);
+		    deleteShipper(headO,headS);
 			break;	
 		case 3:
 			SelectOption(headO,headS)
