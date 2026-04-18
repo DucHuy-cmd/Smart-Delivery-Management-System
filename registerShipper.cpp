@@ -23,18 +23,22 @@ shipper *CreateShipper (){
     scanf ("%lf",&newShipper->weight);
     while (getchar() != '\n');
     
+    //Nhập lượng đơn hàng đã nhận;
+    printf ("Enter Your Order Number: ");
+    scanf ("%d",&newShipper->numberOrder);
+    while (getchar() != '\n');
+    
     //Phan loai shipper 0: Hỏa tốc, 1: bình thường 
     printf ("Enter Your Shipper Type: ");
     scanf ("%d",&newShipper->prioritySP);
     while (newShipper->prioritySP!=0 && newShipper->prioritySP!=1){
-        printf ("Invalid Type!\n");
+        printf ("Invalid Type");
         scanf ("%d",&newShipper->prioritySP);
     }
     
     //Nhận Mã shipper
     sprintf (newShipper->code,"SP%02d",N0S++);
-	
-	newShipper->numberOrder=0;
+    
     newShipper->x=0;
     newShipper->y=0;
     printf ("\n");
@@ -76,7 +80,6 @@ void registerShipper (shipper **headS){
     for (int i=0;i<NoS;i++){
     //Nhập thông tin của n shipper đã đăng ký
     shipper *newShipPtr=CreateShipper();
-    if (newShipPtr == NULL) continue;
     	if (*headS==NULL){
     		*headS=newShipPtr;
     		Tail=newShipPtr;
@@ -89,6 +92,13 @@ void registerShipper (shipper **headS){
     }
 	informationShipper (headS);
     printf ("\n====SUCCESS REGISTED====\n");
+    printf ("Press Enter To Return");
+    char c;
+    c = getch();
+    while (c!='\r'){
+        c=getch();
+    }
+    Shipper_Management(headO,headS);
 }
 
 void deleteShipper (shipper **headS){
@@ -96,6 +106,7 @@ void deleteShipper (shipper **headS){
         printf ("List is empty");
         return;
     }
+    int F=0;
     shipper *p=*headS;
     char deLShip[5];
     printf ("Enter The Shipper ID You Want To Delete: ");
@@ -105,9 +116,9 @@ void deleteShipper (shipper **headS){
         *headS=(*headS)->next;
         free(p);
         printf ("Delete Successfully!\n");
-        return;
+        F=1;
     }
-    if (p->next!=NULL){
+    if (p->next!=NULL && F!=1){
     shipper *p1=p->next;
         while (p->next!=NULL){
             if (p->next!=NULL && strcmp(p->next->code,deLShip)==0){
@@ -115,7 +126,8 @@ void deleteShipper (shipper **headS){
                 p1->next=NULL;
                 free(p1);
                 printf ("Delete Successfully!\n");
-                return;
+                F=1;
+                break;
             }
             else{
                 p=p->next;
@@ -123,15 +135,24 @@ void deleteShipper (shipper **headS){
             }
         }
     }
-    printf ("Shipper Not Found!!\n");
+    if (F==0){
+        printf ("Shipper Not Found!!\n");
+    }
+    printf ("Press Enter To Return");
+    char c;
+    c = getch();
+    while (c!='\r'){
+        c=getch();
+    }
+    Shipper_Management(headO,headS);
 }
 
 int Shipper_Management(order **headO, shipper **headS){
 	int countChoice = 0;
 	int choiceTwo;
 	printf("\n1. Register as a new Shipper"
-			"\n2. Delete Shipper"
-			"\n3. View the list of active shippers\n\n");
+			"\n2. Update Location/Status (Available/Busy/On Break)"
+			"\n3. Return\n\n");
 	do{
 		if(countChoice==3){
 			return -1;
@@ -147,9 +168,8 @@ int Shipper_Management(order **headO, shipper **headS){
 		case 2:
 		    deleteShipper(headS);
 			break;	
-		/*case 3:
-			UpdateOrder(headO);
-			break;*/
+		case 3:
+			SelectOption(headO,headS)
+			break;
 	}
-    return 0;
 }
