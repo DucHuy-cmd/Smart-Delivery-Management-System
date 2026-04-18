@@ -160,7 +160,6 @@ int Shipper_Management(order **headO, shipper **headS) {
         deleteShipper(headS);
         break;
     case 3:
-        SelectOption(headO,headS);
-        break;
+        return 0;
     }
 }
