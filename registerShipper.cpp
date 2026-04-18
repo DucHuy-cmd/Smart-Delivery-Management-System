@@ -117,22 +117,17 @@ void deleteShipper (order **headO,shipper **headS){
         printf ("Delete Successfully!\n");
         F=1;
     }
-    if (p->next!=NULL && F!=1){
-    shipper *p1=p->next;
-        while (p->next!=NULL){
-            if (p->next!=NULL && strcmp(p->next->code,deLShip)==0){
-                p->next=p1->next;
-                p1->next=NULL;
-                free(p1);
-                printf ("Delete Successfully!\n");
-                F=1;
-                break;
-            }
-            else{
-                p=p->next;
-                p1=p1->next;
-            }
+    while (p->next!=NULL){
+        shipper *p1=p->next;
+        if (p->next!=NULL && strcmp(p->next->code,deLShip)==0){
+            p->next=p1->next;
+            p1->next=NULL;
+            free(p1);
+            printf ("Delete Successfully!\n");
+            F=1;
+            break;
         }
+        p=p->next;
     }
     if (F==0){
         printf ("Shipper Not Found!!\n");
@@ -169,7 +164,7 @@ int Shipper_Management(order **headO, shipper **headS){
 		    deleteShipper(headO,headS);
 			break;	
 		case 3:
-			SelectOption(headO,headS)
+			SelectOption(headO,headS);
 			break;
 	}
 }
