@@ -146,7 +146,7 @@ int Shipper_Management(order **headO, shipper **headS){
 	int countChoice = 0;
 	int choiceTwo;
 	printf("\n1. Register as a new Shipper"
-			"\n2. Update Location/Status (Available/Busy/On Break)"
+			"\n2. Delete Shipper"
 			"\n3. Return\n\n");
 	do{
 		if(countChoice==3){
