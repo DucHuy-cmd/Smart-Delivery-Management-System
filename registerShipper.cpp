@@ -29,9 +29,11 @@ shipper *CreateShipper (){
     //Phan loai shipper 0: Hỏa tốc, 1: bình thường 
     printf ("Enter Your Shipper Type: ");
     scanf ("%d",&newShipper->prioritySP);
+	while (getchar() != '\n');
     while (newShipper->prioritySP!=0 && newShipper->prioritySP!=1){
         printf ("Invalid Type");
         scanf ("%d",&newShipper->prioritySP);
+		while (getchar() != '\n');
     }
     
     //Nhận Mã shipper
