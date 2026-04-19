@@ -36,6 +36,7 @@ shipper *CreateShipper () {
     //Nhận Mã shipper
     sprintf (newShipper->code,"SP%02d",N0S++);
     newShipper->numberOrder=0;
+    newShipper->status=0;
     newShipper->x=0;
     newShipper->y=0;
     printf ("\n");
@@ -53,9 +54,9 @@ void informationShipper (shipper **headS) {
     }
     fprintf (S,"====================================List shipper==================================\n");
     fprintf (S,"----------------------------------------------------------------------------------\n");
-    fprintf (S,"||%-30s||%-20s||%-10s||%-10s||\n","Name","CCCD","CODE","Order");
+    fprintf (S,"||%-30s||%-20s||%-10s||%-10s||\n","Name","CCCD","CODE","Priority");
     while (p!=NULL) {
-        fprintf (S,"||%-30s||%-20lld||%-10s||%-10d\n",p->Name,p->CCCD,p->code,p->numberOrder);
+        fprintf (S,"||%-30s||%-20lld||%-10s||%-10d||\n",p->Name,p->CCCD,p->code,p->prioritySP);
         p=p->next;
     }
     fclose(S);
@@ -85,7 +86,6 @@ void registerShipper (shipper **headS) {
             Tail->next=newShipPtr;
             Tail = newShipPtr;
         }
-        Tail->status=0;
     }
     informationShipper (headS);
     printf ("\n====SUCCESS REGISTED====\n");
@@ -99,7 +99,7 @@ void deleteShipper (shipper **headS) {
     shipper *p=*headS;
     char deLShip[5];
     printf ("Enter The Shipper ID You Want To Delete: ");
-    while (getchar() != '\n' && !feof(stdin)); 
+    while (getchar() != '\n');
     fgets (deLShip,sizeof(deLShip),stdin);
     deLShip[strcspn(deLShip,"\n")] = '\0';
     if (strcmp(p->code, deLShip)==0) {
@@ -129,7 +129,7 @@ int Shipper_Management(order **headO, shipper **headS) {
     int choiceTwo;
     printf("\n1. Register as a new Shipper"
            "\n2. Delete Shipper"
-           "\n3. Return\n\n");
+           "\n3. List Shipper\n\n");
     do {
         if(countChoice==3) {
             return -1;
@@ -146,6 +146,8 @@ int Shipper_Management(order **headO, shipper **headS) {
         deleteShipper(headS);
         break;
     case 3:
-        return 0;
+    	system("notepad information.txt");
+    	break;
     }
+    return 0;
 }
