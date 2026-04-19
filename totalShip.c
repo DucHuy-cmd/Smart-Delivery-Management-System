@@ -74,23 +74,27 @@ int Statistics_and_Reports(order **headO, shipper **headS) {
         if(countChoice==3) {
             return -1;
         }
-        printf("Enter your choice(1-2): ");
+        printf("Enter your choice(1-3): ");
         scanf("%d", &choiceTwo);
         ++countChoice;
     } while(choiceTwo>3 || choiceTwo<1);
     switch (choiceTwo){
         case 1:
-            printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO));
-            break;
+           printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO));
+           break;
         case 2:
-            compileReport(headO,headS,"Compile_Report.txt");
-            break;
+           compileReport(headO,headS,"Compile_Report.txt");
+           break;
         case 3:
-            return 0;
-    }
+           return 0;
+        default:
+           countChoice++;
+           printf("\nInvalid choice! (Attempts: %d/3)\n", countChoice);
+           break;
+}
     printf("\nPress Enter To Return");
     getch();
     if(choiceTwo>=1 && choiceTwo <3) countChoice = 0;
     if(countChoice ==3) return -1;
-    }while(choiceTwo !=3);
+}while(choiceTwo !=3);
 }
