@@ -47,7 +47,7 @@ void compileReport(order **headO, shipper **headS, char file[]){
             fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2f\n",tempO->code, tempO->customerName, tempO->weight,"Shipping",0.0);
         }
         if(tempO->status == 2){
-            fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2lf\n",tempO->code, tempO->customerName, tempO->weight,"Delivered",tempO->fee);
+            fprintf(f,"%-7s |%-20s |%-10.2lf |%-10s |%-10.2lf\n",tempO->code, tempO->customerName, tempO->weight,"Delivered",tempO->fee);
         }
         tempO = tempO->next;
     }
@@ -56,7 +56,7 @@ void compileReport(order **headO, shipper **headS, char file[]){
 
     fprintf(f,"============================ PART III: TOTAL REVENUE ============================\n");
     fprintf(f,"---------------------------------------------------------------------------------\n");
-    fprintf(f,"                       TOTAL REVENUE COLLECTED TODAY:                         %.2f\n", totalShip(*headO));
+    fprintf(f,"                           TOTAL REVENUE EARNED:                              %.2f\n", totalShip(*headO));
     fprintf(f,"---------------------------------------------------------------------------------\n");
 
     fclose(f);
@@ -80,17 +80,17 @@ int Statistics_and_Reports(order **headO, shipper **headS) {
     } while(choiceTwo>3 || choiceTwo<1);
     switch (choiceTwo){
         case 1:
-           printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO));
-           break;
+            printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO);
+            break;
         case 2:
-           compileReport(headO,headS,"Compile_Report.txt");
-           break;
+            compileReport(headO,headS,"Compile_Report.txt");
+            break;
         case 3:
-           return 0;
+            return 0;
         default:
-           countChoice++;
-           printf("\nInvalid choice! (Attempts: %d/3)\n", countChoice);
-           break;
+            countChoice++;
+            printf("\nInvalid choice! (Attempts: %d/3)\n", countChoice);
+            break;
 }
     printf("\nPress Enter To Return");
     getch();
