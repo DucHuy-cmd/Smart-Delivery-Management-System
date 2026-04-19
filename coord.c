@@ -1,11 +1,6 @@
 #include <time.h>
-
-#define MAP_SIZE 30
-typedef struct { int x, y; } MapPoint;
-
-char grid[MAP_SIZE][MAP_SIZE];
-MapPoint parent[MAP_SIZE][MAP_SIZE];
-bool visited[MAP_SIZE][MAP_SIZE];
+#include <windows.h>
+#include"Lib.h"
 
 void dispatchOrders(order **headO, shipper **headS) {
     if (*headO == NULL || *headS == NULL) {
@@ -41,11 +36,11 @@ void dispatchOrders(order **headO, shipper **headS) {
                 totalDispatched += count; 
                 fprintf(f, "\n--------------------------------------------------------------------------\n");
                 fprintf(f, "Shipper: %s | Ten: %s\n", s->code, s->Name);
-                fprintf(f, "Loai: %s | Tai trong: %.2lf / %.2lf kg\n", (s->prioritySP == 0 ? "Hoa toc" : "Binh thuong"), currentLoad, s->weight);
+                fprintf(f, "Loai: %s | Tai trong: %.2lf / %.2lf kg\n", (s->prioritySP == 1 ? "Hoa toc" : "Binh thuong"), currentLoad, s->weight);
                 fprintf(f, "Danh sach don hang da nhan (%d don):\n", count);
                 fprintf(f, "%-15s %-15s %-10s\n", "Ma don", "Khoi luong", "Loai don");
                 for (int i = 0; i < count; i++) {
-                    fprintf(f, "%-15s %-15.2lf %-10s\n", batch[i]->code, batch[i]->weight, (batch[i]->priority == 0 ? "Hoa toc" : "Binh thuong"));
+                    fprintf(f, "%-15s %-15.2lf %-10s\n", batch[i]->code, batch[i]->weight, (batch[i]->priority == 1 ? "Hoa toc" : "Binh thuong"));
                 }
             }
         }
@@ -66,12 +61,18 @@ void dispatchOrders(order **headO, shipper **headS) {
         printf("\n[Thong bao] Hien tai khong co don hang nao phu hop de dieu phoi!\n");
         remove("dispatch_report.txt"); 
     }
-    printf("\nPress Enter To Return...");
-    char c = getch(); while (c != '\r') c = getch();
+}
+
+// Hàm này giúp đưa con trỏ về vị trí x, y để vẽ đè map mượt mà
+void gotoxy(int x, int y) {
+    COORD coord;
+    coord.X = x;
+    coord.Y = y;
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
 
 void displayMap(char* sCode, double curW, double maxW) {
-    printf("\033[H"); 
+    gotoxy(0, 0); 
     printf("\n=== HE THONG MO PHONG LO TRINH SHIPPER ===\n");
     printf("Shipper: [%s] | Tai trong: %.1f/%.1f kg\n", sCode, curW, maxW);
     for (int i = 0; i < MAP_SIZE * 2 + 3; i++) printf("-"); printf("\n");
@@ -132,6 +133,8 @@ void simulateDeliveryRoute(order **headO, shipper **headS) {
         char c = getch(); while (c != '\r') c = getch();
         return;
     }
+
+    system("mode con cols=100 lines=45");
 
     // 1. Mo file bao cao mot lan duy nhat o dau ham
     FILE *f = fopen("trip_simulation_report.txt", "w");
@@ -224,9 +227,6 @@ void simulateDeliveryRoute(order **headO, shipper **headS) {
     } else {
         printf("\n[Luu y] Khong co shipper nao co don hang de giao!\n");
     }
-
-    printf("\nPress Enter To Return to Main Menu...");
-    char c = getch(); while (c != '\r') c = getch();
 }
 
 int Smart_Coordination(order **headO, shipper **headS) {
@@ -238,6 +238,7 @@ int Smart_Coordination(order **headO, shipper **headS) {
         printf("\n================ SMART COORDINATION ================\n");
         printf("1. Automatically assign orders (Dispatch)\n");
         printf("2. Simulate delivery routes (Run Map)\n");
+        printf("3. Return to Main Menu\n"); // Cửa thoát hiểm đây
         printf("====================================================\n\n");
         
         if (countChoice == 3) {
@@ -246,12 +247,12 @@ int Smart_Coordination(order **headO, shipper **headS) {
             return -1;
         }
         
-        printf("Enter your choice: ");
+        printf("Enter your choice (1-3): ");
         if (scanf("%d", &choiceTwo) != 1) {
             while(getchar() != '\n');
             choiceTwo = 0;
         }
-        while(getchar() != '\n'); // Clean buffer
+        while(getchar() != '\n'); // Dọn dẹp bộ đệm
         
         switch(choiceTwo) {
             case 1:
@@ -259,15 +260,18 @@ int Smart_Coordination(order **headO, shipper **headS) {
                 dispatchOrders(headO, headS);
                 break;
             case 2:
-                // Chức năng chạy map mô phỏng (hàm mình vừa sửa lúc nãy)
+                // Chức năng chạy map mô phỏng
                 simulateDeliveryRoute(headO, headS);
-                break; 
+                break;
+            case 3:
+                // Lệnh return này sẽ phá vỡ vòng lặp và quay về Menu lớn bên ngoài
+                return 1; 
             default:
                 printf("Invalid choice! Vui long nhap lai.\n");
                 countChoice++;
                 Sleep(1000);
         }
-    } while(choiceTwo != 2);
+    } while(choiceTwo != 3); // Vòng lặp giữ chân người dùng ở lại Menu này
     
     return 1;
 }
