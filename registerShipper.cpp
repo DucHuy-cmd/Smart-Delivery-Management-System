@@ -36,7 +36,6 @@ shipper *CreateShipper () {
     //Nhận Mã shipper
     sprintf (newShipper->code,"SP%02d",N0S++);
     newShipper->numberOrder=0;
-    newShipper->status=0;
     newShipper->x=0;
     newShipper->y=0;
     printf ("\n");
