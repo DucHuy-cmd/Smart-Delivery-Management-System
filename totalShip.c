@@ -47,7 +47,7 @@ void compileReport(order **headO, shipper **headS, char file[]){
             fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2f\n",tempO->code, tempO->customerName, tempO->weight,"Shipping",0.0);
         }
         if(tempO->status == 2){
-            fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2f\n",tempO->code, tempO->customerName, tempO->weight,"Delivered",tempO->fee);
+            fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2lf\n",tempO->code, tempO->customerName, tempO->weight,"Delivered",tempO->fee);
         }
         tempO = tempO->next;
     }
