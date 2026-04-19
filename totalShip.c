@@ -1,36 +1,3 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<String.h>
-typedef struct{
-	int day;
-	int month;
-	int year;
-}DATE;
-typedef struct ORDER{
-	char code[5];
-	char customerName[30];
-	char orderName[30];
-	int x;
-	int y;
-	double weight;
-	int priority;
-	double fee;
-	int status;
-	int isSaved; // 0: chua luu, 1: da duoc luu
-	DATE date;
-	struct ORDER *next;
-}order;
-typedef struct SHIPPER{
-	char code[5];
-	char Name[30];
-	long long CCCD;
-	int x;
-	int y;
-	double weight;
-	int status;
-	int numberOrder;
-	struct SHIPPER *next;
-}shipper;
 double totalShip(order *headO){
     double total = 0;
     if(headO == NULL) return 0.0;
@@ -89,7 +56,7 @@ void compileReport(order **headO, shipper **headS, char file[]){
 
     fprintf(f,"============================ PART III: TOTAL REVENUE ============================\n");
     fprintf(f,"---------------------------------------------------------------------------------\n");
-    fprintf(f,"TOTAL REVENUE COLLECTED TODAY: %.2f", totalShip(*headO));
+    fprintf(f,"                       TOTAL REVENUE COLLECTED TODAY:                         %.2f\n", totalShip(*headO));
     fprintf(f,"---------------------------------------------------------------------------------\n");
 
     fclose(f);
@@ -118,68 +85,8 @@ int Statistics_and_Reports(order **headO, shipper **headS) {
         break;
     }
 }
-//giai phong bo nho order
-void freeOrder(order **headO) {
-    order *temp;
-    while(*headO != NULL) {
-        temp = *headO;
-        *headO = (*headO)->next;
-        free(temp);
-    }
-}
-//giai phong bo nho shipper
-void freeShipper(shipper **headS) {
-    shipper *temp;
-    while(*headS != NULL) {
-        temp = *headS;
-        *headS = (*headS)->next;
-        free(temp);
-    }
-}
-int main() {
-    // 1. Khoi tao danh sach Shipper mau
-    shipper *s1 = (shipper*)malloc(sizeof(shipper));
-    strcpy(s1->code, "S001");
-    strcpy(s1->Name, "Nguyen Van Hung");
-    s1->CCCD = 123456789012;
-    s1->status = 0; // Available
-    
-    shipper *s2 = (shipper*)malloc(sizeof(shipper));
-    strcpy(s2->code, "S002");
-    strcpy(s2->Name, "Le Thi Tuoi");
-    s2->CCCD = 987654321098;
-    s2->status = 1; // Busy
-    
-    s1->next = s2;
-    s2->next = NULL;
 
-    // 2. Khoi tao danh sach Don hang mau
-    order *o1 = (order*)malloc(sizeof(order));
-    strcpy(o1->code, "ORD1");
-    strcpy(o1->customerName, "Anh Tuan");
-    o1->weight = 2.5;
-    o1->fee = 55000;
-    o1->status = 2; // Delivered (Se duoc tinh vao doanh thu)
-    
-    order *o2 = (order*)malloc(sizeof(order));
-    strcpy(o2->code, "ORD2");
-    strcpy(o2->customerName, "Chi Lan");
-    o2->weight = 1.0;
-    o2->fee = 20000;
-    o2->status = 0; // Pending
-    
-    o1->next = o2;
-    o2->next = NULL;
 
-    // 3. Goi ham menu de nguoi dung thao tac
-    Statistics_and_Reports(&o1, &s1);
-
-    // 4. Giai phong bo nho truoc khi thoat
-    free(o1); free(o2);
-    free(s1); free(s2);
-
-    return 0;
-}
 
 
 
