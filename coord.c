@@ -238,7 +238,6 @@ int Smart_Coordination(order **headO, shipper **headS) {
         printf("\n================ SMART COORDINATION ================\n");
         printf("1. Automatically assign orders (Dispatch)\n");
         printf("2. Simulate delivery routes (Run Map)\n");
-        printf("3. Return to Main Menu\n");
         printf("====================================================\n\n");
         
         if (countChoice == 3) {
@@ -262,16 +261,13 @@ int Smart_Coordination(order **headO, shipper **headS) {
             case 2:
                 // Chức năng chạy map mô phỏng (hàm mình vừa sửa lúc nãy)
                 simulateDeliveryRoute(headO, headS);
-                break;
-            case 3:
-                // Thoát ra Menu chính
-                return 1; 
+                break; 
             default:
                 printf("Invalid choice! Vui long nhap lai.\n");
                 countChoice++;
                 Sleep(1000);
         }
-    } while(choiceTwo != 3);
+    } while(choiceTwo != 2);
     
     return 1;
 }
