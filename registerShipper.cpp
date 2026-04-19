@@ -90,12 +90,6 @@ void registerShipper (shipper **headS) {
     }
     informationShipper (headS);
     printf ("\n====SUCCESS REGISTED====\n");
-    printf ("Press Enter To Return");
-    char c;
-    c = getch();
-    while (c!='\r') {
-        c=getch();
-    }
 }
 
 void deleteShipper (shipper **headS) {
@@ -103,39 +97,31 @@ void deleteShipper (shipper **headS) {
         printf ("List is empty");
         return;
     }
-    int F=0;
     shipper *p=*headS;
     char deLShip[5];
     printf ("Enter The Shipper ID You Want To Delete: ");
+    while (getchar() != '\n' && !feof(stdin)); 
     fgets (deLShip,sizeof(deLShip),stdin);
     deLShip[strcspn(deLShip,"\n")] = '\0';
     if (strcmp(p->code, deLShip)==0) {
         *headS=(*headS)->next;
         free(p);
         printf ("Delete Successfully!\n");
-        F=1;
+        informationShipper (headS);
+        return;
     }
     while (p->next!=NULL) {
         shipper *p1=p->next;
         if (p->next!=NULL && strcmp(p->next->code,deLShip)==0) {
             p->next=p1->next;
-            p1->next=NULL;
             free(p1);
             printf ("Delete Successfully!\n");
-            F=1;
-            break;
+            informationShipper (headS);
+            return;
         }
         p=p->next;
     }
-    if (F==0) {
-        printf ("Shipper Not Found!!\n");
-    }
-    printf ("Press Enter To Return");
-    char c;
-    c = getch();
-    while (c!='\r') {
-        c=getch();
-    }
+    printf ("Shipper Not Found!!\n");
     informationShipper (headS);
 }
 
