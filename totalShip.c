@@ -66,8 +66,10 @@ void compileReport(order **headO, shipper **headS, char file[]){
 int Statistics_and_Reports(order **headO, shipper **headS) {
     int countChoice = 0;
     int choiceTwo;
+    do{
     printf("\n1. Calculate the total daily revenue"
-           "\n2. Export the report\n\n");
+           "\n2. Export the report"
+           "\n3.Back to menu\n\n");
     do {
         if(countChoice==3) {
             return -1;
@@ -75,20 +77,20 @@ int Statistics_and_Reports(order **headO, shipper **headS) {
         printf("Enter your choice(1-2): ");
         scanf("%d", &choiceTwo);
         ++countChoice;
-    } while(choiceTwo>2 || choiceTwo<1);
+    } while(choiceTwo>3 || choiceTwo<1);
     switch (choiceTwo){
         case 1:
-        printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO));
-        break;
+            printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO));
+            break;
         case 2:
-        compileReport(headO,headS,"Compile_Report.txt");
-        break;
+            compileReport(headO,headS,"Compile_Report.txt");
+            break;
+        case 3:
+            return 0;
     }
+    printf("\nPress Enter To Return");
+    getch();
+    if(choiceTwo>=1 && choiceTwo <3) countChoice = 0;
+    if(countChoice ==3) return -1;
+    }while(choiceTwo !=3);
 }
-
-
-
-
-
-
-
