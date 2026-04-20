@@ -3,82 +3,90 @@
 // Hàm thực hiện điều phối đơn hàng
 void dispatchOrders(order **headO, shipper **headS) {
     if (*headO == NULL || *headS == NULL) {
-        printf("\n[Thong bao] He thong chua co don hang hoac chua co shipper de dieu phoi!\n");
+        printf("\n[!] System lacks orders or shippers to dispatch!\n");
         return;
     }
 
     FILE *f = fopen("dispatch_report.txt", "w");
-    if (f == NULL) {
-        printf("\n[Loi] Khong the tao file bao cao!\n");
-        return;
-    }
+    if (f == NULL) return;
 
-    // In Header của Report
-    fprintf(f, "====================================== DISPATCH REPORT ======================================\n");
-    fprintf(f, "---------------------------------------------------------------------------------------------\n");
-    fprintf(f, "%-10s | %-20s | %-12s | %-15s | %-25s\n", "ID SHIPPER", "TEN SHIPPER", "LOAI SHIPPER", "TAI TRONG (kg)", "DON HANG DUOC GAN (ID)");
-    fprintf(f, "---------------------------------------------------------------------------------------------\n");
+    // Get current time and format with AM/PM
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    char timeStr[20];
+    char dateStr[20];
+    strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &tm);
+    strftime(timeStr, sizeof(timeStr), "%I:%M:%S %p", &tm); // %I is 12h, %p is AM/PM
+
+    // --- REPORT HEADER ---
+    fprintf(f, "==========================================================================================\n");
+    fprintf(f, "                             SMART ORDER DISPATCH SYSTEM                                 \n");
+    fprintf(f, "                      Date: %-10s  -  Time: %-12s                        \n", dateStr, timeStr);
+    fprintf(f, "==========================================================================================\n\n");
+
+    printf("\n[SYSTEM] Dispatching in progress...\n");
 
     shipper *s = *headS;
-    int totalDispatched = 0; // Đếm tổng số đơn đã điều phối thành công
+    int totalDispatched = 0;
+    double totalWeightDispatched = 0;
 
     while (s != NULL) {
-        if (s->status == 0) { // Nếu shipper đang rảnh
-            double currentLoad = 0.0;
-            int count = 0;
-            order *batch[50]; // Giả sử 1 shipper nhận tối đa 50 đơn cùng lúc
-
+        if (s->status == 0) { // Shipper is available
+            int hasOrder = 0;
+            double currentLoad = 0;
             order *o = *headO;
+
             while (o != NULL) {
-                // Điều kiện: Đơn chưa giao (0) VÀ cùng độ ưu tiên (0=Thường, 1=Hỏa tốc)
-                if (o->status == 0 && o->priority == s->prioritySP) {
-                    // Kiểm tra xem sức chứa của shipper còn đủ để chở thêm không
-                    if (currentLoad + o->weight <= s->weight) {
-                        currentLoad += o->weight;
-                        batch[count++] = o;
-                        o->status = 1; // Đánh dấu đơn hàng đang được giao
+                if (o->status == 0 && o->priority == s->prioritySP && (currentLoad + o->weight) <= s->weight) {
+                    if (hasOrder == 0) {
+                        // Shipper info header in English
+                        fprintf(f, "SHIPPER: [%-5s] - Name: %-20s | Type: %-10s | Max Load: %.2f kg\n", 
+                                s->code, s->Name, (s->prioritySP == 1 ? "EXPRESS" : "NORMAL"), s->weight);
+                        fprintf(f, "  +-------+------------+----------------------+------------+------------+\n");
+                        fprintf(f, "  | NO.   | ORDER ID   | CUSTOMER NAME        | WEIGHT     | STATUS     |\n");
+                        fprintf(f, "  +-------+------------+----------------------+------------+------------+\n");
                     }
+                    
+                    o->status = 1; 
+                    currentLoad += o->weight;
+                    hasOrder++;
+                    totalDispatched++;
+                    totalWeightDispatched += o->weight;
+
+                    // Table row - Perfectly aligned
+                    fprintf(f, "  | %-5d | %-10.10s | %-20.20s | %-7.2f kg | %-10.10s |\n", 
+                            hasOrder, o->code, o->customerName, o->weight, "ASSIGNED");
+                    
+                    printf("[+] Order [%s] -> Shipper [%s]\n", o->code, s->code);
                 }
                 o = o->next;
             }
 
-            // Nếu shipper nhận được đơn
-            if (count > 0) {
-                s->status = 1; // Đánh dấu shipper đang bận đi giao
-                s->numberOrder += count;
-                totalDispatched += count;
-
-                // Nối các mã code đơn hàng lại để in cho đẹp
-                char assignedCodes[256] = "";
-                for (int i = 0; i < count; i++) {
-                    strcat(assignedCodes, batch[i]->code);
-                    if (i < count - 1) strcat(assignedCodes, ", ");
-                }
-
-                char typeStr[15];
-                strcpy(typeStr, s->prioritySP == 1 ? "Hoa toc (1)" : "Thuong (0)");
-
-                // Ghi vào file
-                fprintf(f, "%-10s | %-20s | %-12s | %-15.2lf | %-25s\n", 
-                        s->code, s->Name, typeStr, s->weight, assignedCodes);
+            if (hasOrder > 0) {
+                s->status = 1; 
+                fprintf(f, "  +-------+------------+----------------------+------------+------------+\n");
+                fprintf(f, "  >> Actual Payload: %.2f kg\n\n", currentLoad);
+                fprintf(f, "------------------------------------------------------------------------------------------\n\n");
             }
         }
-        s = s->next; // Chuyển sang shipper tiếp theo
+        s = s->next;
     }
 
-    if (totalDispatched == 0) {
-        fprintf(f, "\nKhong co don hang nao duoc dieu phoi (Co the do lech priority hoac da het don/shipper).\n");
-    }
+    // --- FINAL SUMMARY ---
+    fprintf(f, "==========================================================================================\n");
+    fprintf(f, "                                 DISPATCH SESSION SUMMARY                                \n");
+    fprintf(f, "  - Total Orders Assigned:   %d units\n", totalDispatched);
+    fprintf(f, "  - Total Weight Delivered:  %.2f kg\n", totalWeightDispatched);
+    fprintf(f, "==========================================================================================\n");
 
-    fprintf(f, "---------------------------------------------------------------------------------------------\n");
-    fprintf(f, "=> TONG SO DON HANG DA GIAO CHO SHIPPER LA: %d\n", totalDispatched);
-    fprintf(f, "=============================================================================================\n");
     fclose(f);
-
-    printf("\n>>> DIEU PHOI THANH CONG! Dang mo file bao cao...\n");
+    printf("\n[SUCCESS] Report exported to 'dispatch_report.txt'!\n");
     
-    // Mở file tự động (Dùng cho Windows)
-    system("start dispatch_report.txt"); 
+    // Automatically open the report
+    system("start notepad dispatch_report.txt");
+
+    printf("Press Enter to return...");
+    getch();
 }
 
 // OPTION 3 (Smart Coordination)
