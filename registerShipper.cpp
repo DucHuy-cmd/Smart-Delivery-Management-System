@@ -1,4 +1,4 @@
-int Shipper_Management(shipper **headS);
+int Shipper_Management(order **headO,shipper **headS);
 void registerShipper (shipper **headS);
 
 static int N0S=1;
@@ -149,5 +149,4 @@ int Shipper_Management(order **headO, shipper **headS) {
     	system("notepad information.txt");
     	break;
     }
-    return 0;
 }
