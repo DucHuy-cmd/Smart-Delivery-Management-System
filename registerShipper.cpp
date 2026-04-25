@@ -1,4 +1,4 @@
-int Shipper_Management(order **headO,shipper **headS);
+int Shipper_Management(shipper **headS);
 void registerShipper (shipper **headS);
 
 static int N0S=1;
@@ -124,7 +124,7 @@ void deleteShipper (shipper **headS) {
     informationShipper (headS);
 }
 
-int Shipper_Management(order **headO, shipper **headS) {
+int Shipper_Management(shipper **headS) {
     int countChoice = 0;
     int choiceTwo;
     printf("\n1. Register as a new Shipper"
