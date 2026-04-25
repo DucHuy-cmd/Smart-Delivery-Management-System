@@ -243,6 +243,72 @@ int Statistics_and_Reports(order **headO, shipper **headS){
 		++countChoice;
 	}while(choiceTwo>3 || choiceTwo<1);		
 }
+//Mac dinh load don hang khi mo chuong trinh
+void loadFileOrder(order **head){
+	FILE *f = fopen("Order_Information.txt", "r");
+	if(f==NULL) return;
+	char header[500];
+	//chi co dong tieu de
+	if(fgets(header, sizeof(header), f)==NULL){
+		fclose(f);
+		return;
+	}
+	order *tail = *head;
+	if(tail != NULL){
+		while(tail->next != NULL)
+		tail = tail->next;
+	}
+	//chay toi khi chua gap ket thuc file
+	while(!feof(f)){
+		char ptr[15];//bien luu gia tri cua priority
+		char ptr2[20];//bien luu gia tri status
+		order *newNode = (order*)malloc(sizeof(order));
+		if(newNode==NULL) return;
+		//%[^|] doc 1 chuoi co khoang trang cho den khi gap | thi dung lai
+		if(fscanf(f, "%s || %[^|] || %[^|] || %d || %d || %lf || %d/%d/%d || %lf || %s || %s\n", 
+			newNode->code, newNode->orderName, newNode->customerName, &newNode->x, &newNode->y, &newNode->weight,
+			&newNode->date.day, &newNode->date.month, &newNode->date.year, &newNode->fee, ptr, ptr2)>0){
+			if(strcmp(ptr, "Express") == 0) newNode->priority = 1;
+			else newNode->priority = 0;
+			if(strcmp(ptr2, "Pending") == 0) newNode->status = 0;
+			else if(strcmp(ptr2, "Shipping") == 0) newNode->status = 1;
+			else newNode->status = 2;
+			newNode->next = NULL;
+			newNode->isSaved = 0;
+			if(*head == NULL){
+				*head = newNode;
+				tail = newNode;
+			}
+			else{
+				tail->next = newNode;
+				tail = newNode;
+			}
+		}
+		else{
+			free(newNode);//khong doc duoc thi giai phong bo nho
+		}
+	}
+	fclose(f);
+	printf("======DONE LOAD FILE ORDER=====\n");
+}
+//ham xoa khoang trang trong chu
+void rtrim(char *str){
+    if (str == NULL) return;
+    int len = strlen(str);
+    //isspace: neu con khoang trang thi tiep tuc ktra
+    //str[len-1] vi ki tu cuoi cung la n-1
+    while(len > 0 && isspace((unsigned char)str[len - 1])){
+        len--;
+    }
+    str[len] = '\0';
+}
+//clear file de khi sap xep xong in lai se khong bi loi
+void clear_file(){
+	FILE *f = fopen("Order_Information.txt", "w");
+	if(f != NULL){
+		fclose(f);
+	}
+}
 void Option(){
 	printf("================================================\n");
 	printf("= %-44s =\n", "    SMART DELIVERY AND MANAGEMENT SYSTEM");
@@ -275,6 +341,7 @@ void freeShipper(shipper **headS){
 //thuc hien chon de thuc hien va dieu kien neu nhap dung thi thuc hien, sai thi cho nhap lai
 //sai qua 3 lan thi khoa tai khoan		
 void SelectOption(order **headO, shipper **headS){
+	loadFileOrder(headO);
 	int choice, choiceTwo;
 	int countChoice = 0;
 	int (*Select[4])(order**, shipper**) = {Order_Management, Shipper_Management, Smart_Coordination, Statistics_and_Reports};
@@ -283,6 +350,7 @@ void SelectOption(order **headO, shipper **headS){
 		printf("Enter your choice(0-4): ");
 		scanf("%d", &choice);
 		if(choice==0){
+			clear_file();
 			SaveOrder(headO);
 			freeOrder(headO);
 			freeShipper(headS);
