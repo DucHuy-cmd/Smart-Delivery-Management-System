@@ -103,13 +103,13 @@ void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
     newNode->Name, &newNode->CCCD, newNode->code, &newNode->prioritySP,
     &newNode->weight, &newNode->x, &newNode->y,
     &newNode->numberOrder, &newNode->status);
-       	max++;// phai tang neu ko se co thag trung ma shipper
         newNode->next=NULL;
    	         
         if (check != 9){
             free(newNode);
             continue;// bo qua vong lap nhay sang tiep theo khi sscanf !=9
         }    
+		max++;// phai tang neu ko se co thag trung ma shipper
         if (*headS==NULL){
             *headS=newNode;
             tail=newNode;
