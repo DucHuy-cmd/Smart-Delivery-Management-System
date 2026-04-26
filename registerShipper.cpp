@@ -66,18 +66,24 @@ void informationShipper (shipper **headS) {
 
 //xoa khoang trang
 void trimRight(char *str){
+	int start=0;
+	while (str[start]==' ')
+		start++; // xoa khang trang dau
+    
     int len = strlen(str); //strlen dung de dem do dai chuoi
-    while(len > 0 && str[len-1] == ' '){ // tai len-1 la tai ' '
-        str[len-1] = '\0'; // thay ' ' = \0
+    while(len > 0 && (str[len-1] == ' ' || str[len-1] == '\n' || str[len-1] == '\r')){ //xóa khoảng trắng + \n + \r cuối
         len--;// lui lai ktr tiep
     }
+    
+    memmove(str, str + start, len - start);// don chuoi ve dau
+    str[len - start] = '\0'; // ket thuc chuoi
 }
 
 void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
 	FILE *f = fopen("Shipper_information.txt", "r");
 	if(f==NULL) 
         return;
-    shipper *temp;// giai phong list cu ( tranh tran bo nho )
+    shipper *temp;// giai phong list cu ( tranh tran bo nho ) 
     while (*headS!=NULL){
         temp=*headS;
         *headS=(*headS)->next;
@@ -94,7 +100,7 @@ void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
             fclose(f);
             return;
         }
-        if (sscanf(line," %[^|]||%lld||%[^|]||%d||%lf||%d||%d||%d||%d||",//doc du lieu r gan vao struct
+        if (sscanf(line," %[^|] || %lld || %[^|] || %d || %lf || %d || %d || %d || %d ||",//doc du lieu r gan vao struct
             newNode->Name, &newNode->CCCD, newNode->code, &newNode->prioritySP, &newNode->weight, &newNode->x, &newNode->y
             ,&newNode->numberOrder, &newNode->status)==9){
                 N0S++;// phai tang neu ko se co thag trung ma shipper
