@@ -79,22 +79,6 @@ void informationShipper(shipper **headS) {
     fclose(display);
 }
 
-void trim(char *str){
-    int start = 0;
-    int len = strlen(str);
-
-    while (str[start] == ' ')
-        start++;// tim chu cai dau tien
-
-    while (len > start &&
-          (str[len - 1] == ' ' || str[len - 1] == '\n' || str[len - 1] == '\r')) {
-        len--;//tim chu cai cuoi
-    }
-
-    memmove(str, str + start, len - start);
-    str[len - start] = '\0';doi chuoi ve dau
-}
-
 void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
 	FILE *f = fopen("Shipper_data.txt", "r");
 	if(f==NULL) {
@@ -126,8 +110,6 @@ void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
             free(newNode);
             continue;// bo qua vong lap nhay sang tiep theo khi sscanf !=9
         }    
-        trim(newNode->Name); // dung cho ten
-        trim(newNode->code);// ma shipper
         if (*headS==NULL){
             *headS=newNode;
             tail=newNode;
