@@ -285,10 +285,10 @@ void dispatchOrders(order **headO, shipper **headS) {
     FILE *f = fopen("dispatch_report.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
-        fprintf(f, "                        ORDER DISPATCH REPORT                                  \n");
-        fprintf(f, "              Date: %-12s         Time: %-10s              \n", dateStr, timeStr);
+        fprintf(f, "|                       ORDER DISPATCH REPORT                                  |\n");
+        fprintf(f, "|              Date: %-12s         Time: %-10s                                 |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
-        fprintf(f, "  %-6s | %-20s | %-20s | %-8s | %-12s | %-10s\n",
+        fprintf(f, "  %-6s | %-20s | %-20s | %-8s | %-12s | %-10s |\n",
                 "ORDER", "ITEM NAME", "CUSTOMER", "WEIGHT", "STATUS", "FEE (VND)");
         fprintf(f, "  -------+----------------------+----------------------+----------+--------------+------------\n");
         int cntOk = 0, cntFail = 0;
@@ -488,8 +488,8 @@ void animateDelivery(order **headO, shipper **headS) {
     FILE *f = fopen("animation_report.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
-        fprintf(f, "                      DELIVERY SIMULATION REPORT                               \n");
-        fprintf(f, "              Date: %-12s         Time: %-10s              \n", dateStr, timeStr);
+        fprintf(f, "|                      DELIVERY SIMULATION REPORT                              |\n");
+        fprintf(f, "|                    Date: %-12s         Time: %-10s                           |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  %-4.4s | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9.9s\n",
                 "NO.", "ORDER", "ITEM NAME", "CUSTOMER", "RESULT", "STEPS");
@@ -549,8 +549,8 @@ void warehouseOverview(order **headO, shipper **headS) {
     /* Thong ke tong quat */
     printf("\n");
     printf("  ============================================================\n");
-    printf("              WAREHOUSE OVERVIEW - SMART DELIVERY           \n");
-    printf("          Date: %-12s           Time: %-10s           \n", dateStr, timeStr);
+    printf("  |            WAREHOUSE OVERVIEW - SMART DELIVERY           |\n");
+    printf("  |           Date: %-12s           Time: %-10s              |\n", dateStr, timeStr);
     printf("  ============================================================\n");
     printf("  Orders   | Total:%-3d  P(wait):%-3d  G(ship):%-3d  D(done):%-3d\n",
            totalO, cntP, cntG, cntD);
@@ -575,7 +575,7 @@ void warehouseOverview(order **headO, shipper **headS) {
     ---------------------------------------------------------------- */
     printf("\n");
     printf("  ============================================================\n");
-    printf("                    WAREHOUSE LAYOUT MAP                    \n");
+    printf("  |                  WAREHOUSE LAYOUT MAP                    |\n");
     printf("  ============================================================\n\n");
 
     /* Ten cac khu (3x3 = 9 khu) */
@@ -622,8 +622,8 @@ void warehouseOverview(order **headO, shipper **headS) {
     FILE *f = fopen("warehouse_overview.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
-        fprintf(f, "                      WAREHOUSE OVERVIEW REPORT                                \n");
-        fprintf(f, "              Date: %-12s         Time: %-10s              \n", dateStr, timeStr);
+        fprintf(f, "  |                      WAREHOUSE OVERVIEW REPORT                             |\n");
+        fprintf(f, "  |            Date: %-12s         Time: %-10s                                 |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  [ORDERS]    Total: %-3d |  Pending(P): %-3d  |  Shipping(G): %-3d  |  Delivered(D): %-3d\n",
                 totalO, cntP, cntG, cntD);
@@ -639,13 +639,13 @@ void warehouseOverview(order **headO, shipper **headS) {
         fprintf(f, "\n--------------------------------------------------------------------------------\n");
         fprintf(f, "  ORDER LIST:\n");
         fprintf(f, "--------------------------------------------------------------------------------\n");
-        fprintf(f, "  %-6s | %-20s | %-20s | %-9s | %-10s | %-8s\n",
+        fprintf(f, "  %-6s | %-20s | %-20s | %-9s | %-10s | %-8s |\n",
                 "ORDER", "ITEM NAME", "CUSTOMER", "STATUS", "FEE (VND)", "COORD");
         fprintf(f, "  -------+----------------------+----------------------+-----------+------------+----------\n");
         for (order *o = *headO; o != NULL; o = o->next) {
             const char *st = (o->status==0)?"Pending":(o->status==1)?"Shipping":"Delivered";
             double fee = (o->status == 2) ? o->fee : 0.0;
-            fprintf(f, "  %-6.6s | %-20.20s | %-20.20s | %-9.9s | %10.2f | (%2d,%2d)\n",
+            fprintf(f, "  %-6.6s | %-20.20s | %-20.20s | %-9.9s | %10.2f | (%2d,%2d) |\n",
                     o->code, o->orderName, o->customerName, st, fee, o->x, o->y);
         }
         if (totalO == 0) fprintf(f, "  (No orders yet)\n");
@@ -653,13 +653,13 @@ void warehouseOverview(order **headO, shipper **headS) {
         fprintf(f, "\n--------------------------------------------------------------------------------\n");
         fprintf(f, "  SHIPPER LIST:\n");
         fprintf(f, "--------------------------------------------------------------------------------\n");
-        fprintf(f, "  %-6s | %-20s | %-14s | %-11s | %-10s | %-8s\n",
+        fprintf(f, "  %-6s | %-20s | %-14s | %-11s | %-10s | %-8s |\n",
                 "SHIP ID", "SHIPPER NAME", "CCCD", "TYPE", "STATUS", "LOAD(KG)");
         fprintf(f, "  -------+----------------------+----------------+-------------+------------+----------\n");
         for (shipper *s = *headS; s != NULL; s = s->next) {
             const char *type = (s->prioritySP==1) ? "Express" : "Normal";
             const char *st   = (s->status==0)     ? "Free"    : "Busy";
-            fprintf(f, "  %-6.6s | %-20.20s | %-14lld | %-11.11s | %-10.10s | %.2f\n",
+            fprintf(f, "  %-6.6s | %-20.20s | %-14lld | %-11.11s | %-10.10s | %.2f |\n",
                     s->code, s->Name, s->CCCD, type, st, s->weight);
         }
         if (totalS == 0) fprintf(f, "  (No shippers yet)\n");
@@ -695,8 +695,8 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
 
     printf("\n");
     printf("  ============================================================\n");
-    printf("                OPTIMAL ROUTE SUGGESTION - BFS              \n");
-    printf("    Date: %-12s           Time: %-10s           \n", dateStr, timeStr);
+    printf("  |              OPTIMAL ROUTE SUGGESTION - BFS              |\n");
+    printf("  |           Date: %-12s           Time: %-10s              |\n", dateStr, timeStr);
     printf("  ============================================================\n");
     printf("  Start warehouse: W(%d,%d) | Algorithm: BFS\n\n", WH_ROW, WH_COL);
 
@@ -751,12 +751,12 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
     FILE *f = fopen("route_report.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
-        fprintf(f, "                      OPTIMAL ROUTE SUGGESTION REPORT                          \n");
-        fprintf(f, "              Date: %-12s         Time: %-10s              \n", dateStr, timeStr);
+        fprintf(f, "|                     OPTIMAL ROUTE SUGGESTION REPORT                          |\n");
+        fprintf(f, "|              Date: %-12s         Time: %-10s                                 |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  Start warehouse: W(%d, %d)  |  Algorithm: BFS (shortest path)\n\n",
                 WH_ROW, WH_COL);
-        fprintf(f, "  %-4s | %-6s | %-20s | %-20s | %-9s | %-8s | %-14s\n",
+        fprintf(f, "  %-4s | %-6s | %-20s | %-20s | %-9s | %-8s | %-14s |\n",
                 "NO.", "ORDER", "ITEM NAME", "CUSTOMER", "COORD", "STEPS", "RESULT");
         fprintf(f, "  -----+--------+----------------------+----------------------+-----------+----------+----------------\n");
 
@@ -774,7 +774,7 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
             MapPoint path[MAP_SIZE * MAP_SIZE]; int pl = 0;
             int ok = bfsFind(tm2, WH_ROW, WH_COL, er, ec, path, &pl);
             if (ok) found2++;
-            fprintf(f, "  %-4d | %-6.6s | %-20.20s | %-20.20s | (%2d,%2d)   | %-8d | %-14.14s\n",
+            fprintf(f, "  %-4d | %-6.6s | %-20.20s | %-20.20s | (%2d,%2d)   | %-8d | %-14.14s |\n",
                     num2, o->code, o->orderName, o->customerName,
                     er, ec, ok ? pl - 1 : 0,
                     ok ? "FOUND" : "NOT FOUND");
@@ -805,13 +805,13 @@ int Smart_Coordination(order **headO, shipper **headS) {
         system("cls");
         printf("\n");
         printf("  ================================================\n");
-        printf("  =       3. SMART COORDINATION MENU            =\n");
+        printf("  |       3. SMART COORDINATION MENU             |\n");
         printf("  ================================================\n");
-        printf("  = [1]. Automatic order dispatch               =\n");
-        printf("  = [2]. Delivery simulation (animation)        =\n");
-        printf("  = [3]. Warehouse overview (layout map)        =\n");
-        printf("  = [4]. Optimal route suggestion (BFS)         =\n");
-        printf("  = [5]. Back to main menu                      =\n");
+        printf("  | [1]. Automatic order dispatch                |\n");
+        printf("  | [2]. Delivery simulation (animation)         |\n");
+        printf("  | [3]. Warehouse overview (layout map)         |\n");
+        printf("  | [4]. Optimal route suggestion (BFS)          |\n");
+        printf("  | [5]. Back to main menu                       |\n");
         printf("  ================================================\n\n");
 
         if (countWrong >= 3) {
