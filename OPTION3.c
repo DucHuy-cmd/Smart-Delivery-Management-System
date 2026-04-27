@@ -1,539 +1,844 @@
 #include "Lib.h"
 
-// ===================== CẤU HÌNH MAP =====================
-#define ROWS 15
-#define COLS 30
-#define WAREHOUSE_X 0
-#define WAREHOUSE_Y 0
+// ================================================================
+//  OPTION 3 - SMART COORDINATION
+//  [1] Dieu phoi tu dong
+//  [2] Animation shipper giao hang (khong nhap nhay, tim don gan nhat)
+//  [3] Tong quan kho hang (9 khu 3x3 ###)
+//  [4] Goi y duong di (ban do BFS)
+//  [5] Quay lai
+// ================================================================
 
-// Ký hiệu trên map
-#define CELL_EMPTY   '.'
-#define CELL_WALL    '#'
-#define CELL_PATH    '='
-#define CELL_START   'W'   // Kho xuất phát
-#define CELL_END     'X'   // Điểm giao hàng
-#define CELL_SHIPPER 'S'   // Vị trí shipper
+// --- KY HIEU BAN DO ---
+#define SYM_EMPTY     '.'
+#define SYM_WALL      'X'
+#define SYM_PATH      '='
+#define SYM_WAREHOUSE 'W'
+#define SYM_PENDING   'P'
+#define SYM_SHIPPING  'G'
+#define SYM_DELIVERED 'D'
+#define SYM_SHIPPER   'S'
 
-// ===================== STRUCT HỖ TRỢ BFS =====================
-typedef struct {
-    int x, y;
-} Point;
+#define WH_ROW 0
+#define WH_COL 0
 
-typedef struct {
-    Point pt;
-    int dist;
-} BFSNode;
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
 
-// ===================== BFS TÌM ĐƯỜNG ĐI NGẮN NHẤT =====================
-// Trả về độ dài đường đi, -1 nếu không tìm được
-// path[] lưu các điểm trên đường đi
-int bfs(char map[ROWS][COLS], int startX, int startY, int endX, int endY, Point path[], int *pathLen) {
-    bool visited[ROWS][COLS];
-    Point parent[ROWS][COLS];
-    memset(visited, 0, sizeof(visited));
-    for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++)
-            parent[i][j].x = parent[i][j].y = -1;
+// BFS 4 huong
+static int dRow[] = {-1, 1,  0, 0};
+static int dCol[] = { 0, 0, -1, 1};
 
-    int dx[] = {0, 0, 1, -1};
-    int dy[] = {1, -1, 0, 0};
+// Chuong ngai vat
+static int wallR[] = { 2, 2, 2,  5, 5, 5,  8, 8, 11, 11, 11 };
+static int wallC[] = { 3, 4, 5,  7, 8, 9,  2, 3,  6,  7,  8 };
+#define NUM_WALLS 11
 
-    BFSNode queue[ROWS * COLS];
-    int front = 0, back = 0;
-    queue[back].pt.x = startX;
-    queue[back].pt.y = startY;
-    queue[back].dist = 0;
-    back++;
-    visited[startX][startY] = true;
+static int clampVal(int v, int lo, int hi) {
+    return (v < lo) ? lo : (v > hi) ? hi : v;
+}
 
-    int found = -1;
-    while (front < back) {
-        BFSNode cur = queue[front++];
-        if (cur.pt.x == endX && cur.pt.y == endY) {
-            found = cur.dist;
-            break;
+static void enableAnsiControl(void) {
+    static int initialized = 0;
+    if (initialized) return;
+    initialized = 1;
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) return;
+    DWORD mode = 0;
+    if (!GetConsoleMode(hOut, &mode)) return;
+    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(hOut, mode)) return;
+}
+
+// ================================================================
+//  WINDOWS CONSOLE UTILITIES
+// ================================================================
+static void gotoXY(int row, int col) {
+    enableAnsiControl();
+    printf("\x1b[%d;%dH", row + 1, col + 1);
+    fflush(stdout);
+}
+
+static void hideCursor(void) {
+    enableAnsiControl();
+    printf("\x1b[?25l");
+    fflush(stdout);
+}
+
+static void showCursor(void) {
+    enableAnsiControl();
+    printf("\x1b[?25h");
+    fflush(stdout);
+}
+
+// ================================================================
+//  KHOI TAO / DAT DON / DAT SHIPPER
+// ================================================================
+static void initMap(char map[][MAP_SIZE]) {
+    for (int r = 0; r < MAP_SIZE; r++)
+        for (int c = 0; c < MAP_SIZE; c++)
+            map[r][c] = SYM_EMPTY;
+    for (int i = 0; i < NUM_WALLS; i++) {
+        int r = wallR[i], c = wallC[i];
+        if (r >= 0 && r < MAP_SIZE && c >= 0 && c < MAP_SIZE)
+            map[r][c] = SYM_WALL;
+    }
+    map[WH_ROW][WH_COL] = SYM_WAREHOUSE;
+}
+
+static void placeOrders(char map[][MAP_SIZE], order *headO) {
+    for (order *o = headO; o != NULL; o = o->next) {
+        int r = clampVal(o->x, 0, MAP_SIZE - 1);
+        int c = clampVal(o->y, 0, MAP_SIZE - 1);
+        if (map[r][c] == SYM_WAREHOUSE || map[r][c] == SYM_WALL) continue;
+        if      (o->status == 0) map[r][c] = SYM_PENDING;
+        else if (o->status == 1) map[r][c] = SYM_SHIPPING;
+        else                     map[r][c] = SYM_DELIVERED;
+    }
+}
+
+static void placeShippers(char map[][MAP_SIZE], shipper *headS) {
+    for (shipper *s = headS; s != NULL; s = s->next) {
+        if (s->x == 0 && s->y == 0) continue;
+        int r = clampVal(s->x, 0, MAP_SIZE - 1);
+        int c = clampVal(s->y, 0, MAP_SIZE - 1);
+        if (map[r][c] == SYM_WAREHOUSE || map[r][c] == SYM_WALL) continue;
+        map[r][c] = SYM_SHIPPER;
+    }
+}
+
+// ================================================================
+//  BFS TIM DUONG NGAN NHAT
+// ================================================================
+static int bfsFind(char baseMap[][MAP_SIZE],
+                   int sr, int sc, int er, int ec,
+                   MapPoint path[], int *pathLen) {
+    bool     vis[MAP_SIZE][MAP_SIZE];
+    MapPoint par[MAP_SIZE][MAP_SIZE];
+    for (int r = 0; r < MAP_SIZE; r++)
+        for (int c = 0; c < MAP_SIZE; c++) {
+            vis[r][c] = false;
+            par[r][c].x = -1; par[r][c].y = -1;
+        }
+    MapPoint q[MAP_SIZE * MAP_SIZE];
+    int head = 0, tail = 0;
+    q[tail].x = sr; q[tail].y = sc; tail++;
+    vis[sr][sc] = true;
+
+    while (head < tail) {
+        MapPoint cur = q[head++];
+        if (cur.x == er && cur.y == ec) {
+            MapPoint rev[MAP_SIZE * MAP_SIZE];
+            int len = 0;
+            MapPoint at; at.x = er; at.y = ec;
+            while (!(at.x == sr && at.y == sc)) {
+                rev[len++] = at;
+                at = par[at.x][at.y];
+            }
+            rev[len].x = sr; rev[len].y = sc; len++;
+            *pathLen = 0;
+            for (int i = len - 1; i >= 0; i--)
+                path[(*pathLen)++] = rev[i];
+            return 1;
         }
         for (int d = 0; d < 4; d++) {
-            int nx = cur.pt.x + dx[d];
-            int ny = cur.pt.y + dy[d];
-            if (nx >= 0 && nx < ROWS && ny >= 0 && ny < COLS
-                && !visited[nx][ny] && map[nx][ny] != CELL_WALL) {
-                visited[nx][ny] = true;
-                parent[nx][ny].x = cur.pt.x;
-                parent[nx][ny].y = cur.pt.y;
-                queue[back].pt.x = nx;
-                queue[back].pt.y = ny;
-                queue[back].dist = cur.dist + 1;
-                back++;
-            }
+            int nr = cur.x + dRow[d];
+            int nc = cur.y + dCol[d];
+            if (nr < 0 || nr >= MAP_SIZE || nc < 0 || nc >= MAP_SIZE) continue;
+            if (vis[nr][nc] || baseMap[nr][nc] == SYM_WALL) continue;
+            vis[nr][nc] = true;
+            par[nr][nc] = cur;
+            q[tail].x = nr; q[tail].y = nc; tail++;
         }
     }
-
-    if (found == -1) return -1;
-
-    // Trace back đường đi
-    *pathLen = 0;
-    Point temp[ROWS * COLS];
-    int tx = endX, ty = endY;
-    while (tx != -1 && ty != -1) {
-        temp[(*pathLen)].x = tx;
-        temp[(*pathLen)].y = ty;
-        (*pathLen)++;
-        Point p = parent[tx][ty];
-        tx = p.x;
-        ty = p.y;
-    }
-    // Đảo ngược để từ start -> end
-    for (int i = 0; i < *pathLen; i++)
-        path[i] = temp[*pathLen - 1 - i];
-
-    return found;
+    return 0;
 }
 
-// ===================== IN MAP RA MÀN HÌNH =====================
-void printMap(char map[ROWS][COLS], int startX, int startY, int endX, int endY,
-              const char *shipperCode, const char *shipperName,
-              const char *orderCode, const char *customerName,
-              double weight, int priority, int status) {
-
-    // Thông tin đơn hàng và shipper phía trên map
-    printf("\n");
-    printf("  +====================== SMART DELIVERY MAP ======================+\n");
-    printf("  | SHIPPER : [%-5s] %-20s                    |\n", shipperCode, shipperName);
-    printf("  | ORDER   : [%-5s] %-20s | KG: %-6.2f       |\n", orderCode, customerName, weight);
-    printf("  | PRIORITY: %-10s | STATUS: %-25s|\n",
-           priority == 1 ? "EXPRESS" : "NORMAL",
-           status == 0 ? "Pending" : (status == 1 ? "Shipping..." : "Delivered"));
-    printf("  | ROUTE   : W(%d,%d) ========> X(%d,%d)                         |\n",
-           startY, startX, endY, endX);
-    printf("  +=================================================================+\n");
-
-    // In khung map
+// ================================================================
+//  IN BAN DO HINH VUONG (2 ky tu moi o)
+//  30 o * 2 = 60 ky tu rong  |  30 hang cao
+//  -> Xap xi hinh vuong trong console (char cao ~ 2x rong)
+// ================================================================
+static void printMapSquare(char map[][MAP_SIZE]) {
+    /* Vien tren */
     printf("  +");
-    for (int j = 0; j < COLS; j++) printf("-");
+    for (int c = 0; c < MAP_SIZE; c++) printf("--");
     printf("+\n");
-
-    for (int i = 0; i < ROWS; i++) {
+    /* Noi dung */
+    for (int r = 0; r < MAP_SIZE; r++) {
         printf("  |");
-        for (int j = 0; j < COLS; j++) {
-            char c = map[i][j];
-            printf("%c", c);
-        }
+        for (int c = 0; c < MAP_SIZE; c++)
+            printf("%c ", map[r][c]);
         printf("|\n");
     }
-
+    /* Vien duoi */
     printf("  +");
-    for (int j = 0; j < COLS; j++) printf("-");
+    for (int c = 0; c < MAP_SIZE; c++) printf("--");
     printf("+\n");
+}
+/* Tong so dong printMapSquare xuat ra = MAP_SIZE + 2 = 32 */
 
-    // Chú thích
-    printf("\n");
-    printf("  [ CHU THICH / LEGEND ]\n");
-    printf("  %-4c = Kho xuat phat (Warehouse)       %-4c = Diem giao hang (Destination)\n", CELL_START, CELL_END);
-    printf("  %-4c = Duong di ngan nhat (Short Path)  %-4c = O trong (Empty cell)\n", CELL_PATH, CELL_EMPTY);
-    printf("  %-4c = Tuong / Vat can (Wall/Obstacle)  %-4c = Vi tri Shipper\n", CELL_WALL, CELL_SHIPPER);
-    printf("\n");
+/* Legend 1 dong (khong co dong trong o truoc, de caller tu quan ly) */
+static void printLegendBFS(void) {
+    printf("  W=Kho  S=Shipper  ==Duong  G=Don giao  D=Da giao  X=Vat can  .=Trong\n");
 }
 
-// ===================== TẠO MAP NGẪU NHIÊN CÓ TƯỜNG =====================
-void generateMap(char map[ROWS][COLS], int endX, int endY) {
-    srand((unsigned)time(NULL));
-    for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++)
-            map[i][j] = CELL_EMPTY;
+/* Header animation: luon in dung 4 dong de gotoXY ghi de sach */
+static void printAnimHeader(int step, int total,
+                            int curR, int curC, int destR, int destC,
+                            const char *code, const char *cust,
+                            const char *phase) {
+    printf("  +----------------------------------------------------------------+\n");
+    printf("  |  %-11s  Don:%-6s  KH:%-28s|\n", phase, code, cust);
+    printf("  |  Buoc:%3d/%-3d  Vi tri:(%2d,%2d)  -> Dich:(%2d,%2d)            |\n",
+           step, total, curR, curC, destR, destC);
+    printf("  +----------------------------------------------------------------+\n");
+}
+/* Header = 4 dong
+   Blank  = 1 dong
+   Map    = 32 dong
+   Legend = 1 dong
+   TONG   = 38 dong (rows 0..37) moi frame */
 
-    // Tạo tường ngẫu nhiên (~15% ô)
-    for (int i = 0; i < ROWS; i++) {
-        for (int j = 0; j < COLS; j++) {
-            // Không đặt tường tại kho và điểm giao
-            if ((i == WAREHOUSE_X && j == WAREHOUSE_Y) || (i == endX && j == endY))
-                continue;
-            if (rand() % 100 < 15)
-                map[i][j] = CELL_WALL;
+// ================================================================
+//  TIM DON HANG GAN NHAT (BFS) TU VI TRI HIEN TAI
+// ================================================================
+static order* findNearest(order *headO, char baseMap[][MAP_SIZE],
+                          int curR, int curC) {
+    order   *nearest  = NULL;
+    int      minDist  = 99999;
+    char     tmp[MAP_SIZE][MAP_SIZE];
+
+    for (order *o = headO; o != NULL; o = o->next) {
+        if (o->status != 1) continue;
+        int er = clampVal(o->x, 0, MAP_SIZE - 1);
+        int ec = clampVal(o->y, 0, MAP_SIZE - 1);
+        memcpy(tmp, baseMap, sizeof(char) * MAP_SIZE * MAP_SIZE);
+        MapPoint path[MAP_SIZE * MAP_SIZE]; int pl = 0;
+        if (bfsFind(tmp, curR, curC, er, ec, path, &pl)) {
+            if (pl < minDist) { minDist = pl; nearest = o; }
         }
     }
+    return nearest;
 }
 
-// ===================== VẼ ĐƯỜNG ĐI LÊN MAP =====================
-void drawPath(char map[ROWS][COLS], Point path[], int pathLen, int startX, int startY, int endX, int endY) {
-    for (int i = 0; i < pathLen; i++) {
-        int x = path[i].x;
-        int y = path[i].y;
-        if ((x == startX && y == startY) || (x == endX && y == endY))
-            continue;
-        map[x][y] = CELL_PATH;
-    }
-    map[startX][startY] = CELL_START;
-    map[endX][endY]     = CELL_END;
-}
-
-// ===================== LƯU TRẠNG THÁI VÀO FILE =====================
-void saveDeliveryResult(order **headO, shipper **headS,
-                        const char *orderCode, const char *shipperCode,
-                        int newOrderStatus, int newShipperStatus) {
-    // Cập nhật trong linked list
-    order *o = *headO;
-    while (o != NULL) {
-        if (strcmp(o->code, orderCode) == 0) {
-            o->status = newOrderStatus;
-            o->isSaved = 0; // Đánh dấu cần lưu lại
-            break;
-        }
-        o = o->next;
-    }
-    shipper *s = *headS;
-    while (s != NULL) {
-        if (strcmp(s->code, shipperCode) == 0) {
-            s->status = newShipperStatus;
-            break;
-        }
-        s = s->next;
-    }
-
-    // Ghi toàn bộ file order lại
-    FILE *f = fopen("Order_Information.txt", "w");
-    if (f == NULL) { printf("\n[!] Khong the mo file Order_Information.txt de luu!\n"); return; }
-
-    fprintf(f, "%-5s || %-20s || %-20s || %-3s || %-3s || %-6s || %-10s || %-10s || %-10s || %-10s\n",
-            "Code", "Order Name", "Customer Name", "X", "Y", "Weight", "Date", "Fee", "Priority", "Status");
-
-    char *StatusStr[] = {"Pending", "Shipping", "Delivered", "Failed"};
-    o = *headO;
-    while (o != NULL) {
-        char *st = (o->status >= 0 && o->status <= 3) ? StatusStr[o->status] : "Unknown";
-        fprintf(f, "%-5s || %-20s || %-20s || %-3d || %-3d || %-6.2lf || %02d/%02d/%04d || %-10.2lf || %-10s || %-10s\n",
-                o->code, o->orderName, o->customerName,
-                o->x, o->y, o->weight,
-                o->date.day, o->date.month, o->date.year,
-                o->fee,
-                (o->priority == 1) ? "Express" : "Normal",
-                st);
-        o->isSaved = 1;
-        o = o->next;
-    }
-    fclose(f);
-
-    // Ghi file shipper
-    FILE *fs = fopen("Shipper_Information.txt", "w");
-    if (fs != NULL) {
-        fprintf(fs, "====================================List shipper==================================\n");
-        fprintf(fs, "----------------------------------------------------------------------------------\n");
-        fprintf(fs, "||%-30s||%-20s||%-10s||%-10s||%-10s||\n", "Name", "CCCD", "CODE", "Order", "Status");
-        s = *headS;
-        while (s != NULL) {
-            fprintf(fs, "||%-30s||%-20lld||%-10s||%-10d||%-10s||\n",
-                    s->Name, s->CCCD, s->code, s->numberOrder,
-                    (s->status == 0) ? "Available" : "Busy");
-            s = s->next;
-        }
-        fclose(fs);
-    }
-}
-
-// ===================== CHỨC NĂNG GỢI Ý ĐƯỜNG ĐI TỐI ƯU =====================
-void suggestOptimalRoute(order **headO, shipper **headS) {
-    if (*headO == NULL || *headS == NULL) {
-        printf("\n[!] Khong co don hang hoac shipper trong he thong!\n");
-        printf("Press any key to return...");
-        getch();
-        return;
-    }
-
-    // Hiển thị danh sách shipper đang rảnh
-    printf("\n============ DANH SACH SHIPPER TRONG (AVAILABLE) ============\n");
-    shipper *s = *headS;
-    int countS = 0;
-    while (s != NULL) {
-        if (s->status == 0) {
-            printf("  [%d] Code: %-5s | Ten: %-20s | Loai: %s\n",
-                   ++countS, s->code, s->Name, s->prioritySP == 1 ? "Express" : "Normal");
-        }
-        s = s->next;
-    }
-    if (countS == 0) {
-        printf("  [!] Khong co shipper nao dang trong!\n");
-        printf("Press any key to return..."); getch();
-        return;
-    }
-
-    // Chọn shipper
-    char shipCode[10];
-    printf("\nNhap ma shipper can tim duong: ");
-    scanf("%s", shipCode);
-    shipper *chosenShipper = NULL;
-    s = *headS;
-    while (s != NULL) {
-        if (strcmp(s->code, shipCode) == 0 && s->status == 0) {
-            chosenShipper = s;
-            break;
-        }
-        s = s->next;
-    }
-    if (chosenShipper == NULL) {
-        printf("\n[!] Khong tim thay shipper hoac shipper dang ban!\n");
-        printf("Press any key to return..."); getch();
-        return;
-    }
-
-    // Hiển thị danh sách đơn hàng Pending phù hợp
-    printf("\n============ DON HANG CHO GIAO (PENDING - PHU HOP) ============\n");
-    order *o = *headO;
-    int countO = 0;
-    while (o != NULL) {
-        if (o->status == 0 && o->priority == chosenShipper->prioritySP
-            && o->weight <= chosenShipper->weight) {
-            printf("  [%d] Code: %-5s | KH: %-20s | KG: %.2f | Toa do: (%d,%d)\n",
-                   ++countO, o->code, o->customerName, o->weight, o->x, o->y);
-        }
-        o = o->next;
-    }
-    if (countO == 0) {
-        printf("  [!] Khong co don hang phu hop cho shipper nay!\n");
-        printf("Press any key to return..."); getch();
-        return;
-    }
-
-    // Chọn đơn hàng
-    char orderCode[10];
-    printf("\nNhap ma don hang can giao: ");
-    scanf("%s", orderCode);
-    order *chosenOrder = NULL;
-    o = *headO;
-    while (o != NULL) {
-        if (strcmp(o->code, orderCode) == 0 && o->status == 0) {
-            chosenOrder = o;
-            break;
-        }
-        o = o->next;
-    }
-    if (chosenOrder == NULL) {
-        printf("\n[!] Khong tim thay don hang hoac don hang khong hop le!\n");
-        printf("Press any key to return..."); getch();
-        return;
-    }
-
-    // Kiểm tra tọa độ trong phạm vi map
-    int endX = chosenOrder->x % ROWS;
-    int endY = chosenOrder->y % COLS;
-    if (endX < 0) endX = 0;
-    if (endY < 0) endY = 0;
-    // Đảm bảo không trùng kho
-    if (endX == WAREHOUSE_X && endY == WAREHOUSE_Y) endX = 1;
-
-    // Tạo map
-    char map[ROWS][COLS];
-    generateMap(map, endX, endY);
-
-    // BFS tìm đường
-    Point path[ROWS * COLS];
-    int pathLen = 0;
-    int retry = 0;
-    int dist = -1;
-
-    // Thử lại tối đa 5 lần nếu map ngẫu nhiên chặn đường
-    while (dist == -1 && retry < 5) {
-        generateMap(map, endX, endY);
-        dist = bfs(map, WAREHOUSE_X, WAREHOUSE_Y, endX, endY, path, &pathLen);
-        retry++;
-    }
-
-    system("cls");
-
-    if (dist == -1) {
-        printf("\n[!] Khong tim duoc duong di toi diem giao hang! (Bi chan boi tuong)\n");
-        printf("    Toa do dich: (%d, %d)\n", endY, endX);
-        printf("Press any key to return..."); getch();
-        return;
-    }
-
-    // Vẽ đường lên map
-    drawPath(map, path, pathLen, WAREHOUSE_X, WAREHOUSE_Y, endX, endY);
-
-    // Cập nhật trạng thái: đang giao
-    chosenOrder->status = 1;
-    chosenShipper->status = 1;
-    chosenShipper->numberOrder++;
-
-    // In map + thông tin
-    printMap(map, WAREHOUSE_X, WAREHOUSE_Y, endX, endY,
-             chosenShipper->code, chosenShipper->Name,
-             chosenOrder->code, chosenOrder->customerName,
-             chosenOrder->weight, chosenOrder->priority, chosenOrder->status);
-
-    printf("  Khoang cach duong di: %d buoc\n", dist);
-    printf("  Phi ship uoc tinh : %.2f VND\n", chosenOrder->fee);
-    printf("\n  [SHIPPING] Dang giao hang...\n");
-    printf("  Nhan phim bat ky de ket thuc giao hang...");
-    getch();
-
-    // ===== Random kết quả giao hàng: 80% thành công, 20% thất bại =====
-    srand((unsigned)time(NULL) + (unsigned)chosenOrder->x + (unsigned)chosenOrder->y);
-    int roll = rand() % 100;
-    int deliverySuccess = (roll < 80); // 80% thành công
-
-    system("cls");
-
-    // In lại map với trạng thái mới
-    int finalStatus = deliverySuccess ? 2 : 0; // 2=Delivered, 0=Pending lại
-    chosenOrder->status = finalStatus;
-    chosenShipper->status = 0; // Shipper rảnh trở lại
-
-    printMap(map, WAREHOUSE_X, WAREHOUSE_Y, endX, endY,
-             chosenShipper->code, chosenShipper->Name,
-             chosenOrder->code, chosenOrder->customerName,
-             chosenOrder->weight, chosenOrder->priority, finalStatus);
-
-    if (deliverySuccess) {
-        printf("  +=================================================================+\n");
-        printf("  |  [SUCCESS] GIAO HANG THANH CONG!                                |\n");
-        printf("  |  Don hang [%-5s] da duoc giao toi khach hang.                   |\n", chosenOrder->code);
-        printf("  |  Trang thai don hang: DELIVERED                                 |\n");
-        printf("  |  Trang thai shipper : AVAILABLE (da giao xong)                  |\n");
-        printf("  +=================================================================+\n");
-    } else {
-        printf("  +=================================================================+\n");
-        printf("  |  [FAILED] GIAO HANG THAT BAI!                                   |\n");
-        printf("  |  Don hang [%-5s] khong giao duoc (khach vang mat, sai dia chi)  |\n", chosenOrder->code);
-        printf("  |  Trang thai don hang: PENDING (tra ve kho)                      |\n");
-        printf("  |  Trang thai shipper : AVAILABLE (da quay ve)                    |\n");
-        printf("  +=================================================================+\n");
-    }
-
-    // Lưu kết quả vào file
-    saveDeliveryResult(headO, headS,
-                       chosenOrder->code, chosenShipper->code,
-                       finalStatus, 0);
-
-    printf("\n  [FILE] Da luu trang thai vao Order_Information.txt & Shipper_Information.txt\n");
-    printf("  Dang mo file...\n");
-
-    // Tự động mở file
-    Sleep(1000);
-    system("start notepad Order_Information.txt");
-    Sleep(500);
-    system("start notepad Shipper_Information.txt");
-
-    printf("\nPress any key to return to menu...");
-    getch();
-}
-
-// ===================== DISPATCH TỰ ĐỘNG (GIỮ NGUYÊN) =====================
+// ================================================================
+//  CHUC NANG 1: DIEU PHOI DON HANG TU DONG
+// ================================================================
 void dispatchOrders(order **headO, shipper **headS) {
+    system("cls");
     if (*headO == NULL || *headS == NULL) {
-        printf("\n[!] System lacks orders or shippers to dispatch!\n");
-        return;
+        printf("\n  [!] Thieu don hang hoac shipper!\n");
+        printf("\n  Nhan phim bat ky de quay lai...");
+        _getch(); return;
+    }
+
+    time_t t = time(NULL);
+    struct tm ti = *localtime(&t);
+    char dateStr[20], timeStr[20];
+    strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
+
+    printf("\n");
+    printf("  ============================================================\n");
+    printf("          HE THONG DIEU PHOI DON HANG TU DONG              \n");
+    printf("    Ngay: %-12s           Gio: %-10s            \n", dateStr, timeStr);
+    printf("  ============================================================\n\n");
+
+    int totalDispatched = 0;
+    double totalWeight  = 0;
+
+    for (shipper *s = *headS; s != NULL; s = s->next) {
+        if (s->status != 0) continue;
+        int hasOrder = 0;
+        double curLoad = 0;
+        for (order *o = *headO; o != NULL; o = o->next) {
+            if (o->status == 0 && o->priority == s->prioritySP
+                && (curLoad + o->weight) <= s->weight) {
+                if (hasOrder == 0)
+                    printf("  >> Shipper [%s] - %s (Tai max: %.1f kg)\n",
+                           s->code, s->Name, s->weight);
+                o->status = 1;
+                curLoad  += o->weight;
+                hasOrder++; totalDispatched++;
+                totalWeight += o->weight;
+                printf("     [+] Don %-5s | %-18s | %.1f kg -> PHAN CONG\n",
+                       o->code, o->customerName, o->weight);
+            }
+        }
+        if (hasOrder > 0) {
+            s->status = 1;
+            printf("         Tai: %.1f/%.1f kg\n\n", curLoad, s->weight);
+        }
+    }
+
+    if (totalDispatched == 0) {
+        printf("  [!] Khong co don nao duoc phan cong.\n");
+        printf("      (Kiem tra: do uu tien, tai trong, trang thai don/shipper)\n");
+    } else {
+        printf("  ------------------------------------------------------------\n");
+        printf("  Tong da phan cong: %d don  |  Tong can nang: %.1f kg\n",
+               totalDispatched, totalWeight);
     }
 
     FILE *f = fopen("dispatch_report.txt", "w");
-    if (f == NULL) return;
-
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    char timeStr[20], dateStr[20];
-    strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &tm);
-    strftime(timeStr, sizeof(timeStr), "%I:%M:%S %p", &tm);
-
-    fprintf(f, "==========================================================================================\n");
-    fprintf(f, "                             SMART ORDER DISPATCH SYSTEM                                 \n");
-    fprintf(f, "                      Date: %-10s  -  Time: %-12s                        \n", dateStr, timeStr);
-    fprintf(f, "==========================================================================================\n\n");
-
-    printf("\n[SYSTEM] Dispatching in progress...\n");
-
-    shipper *s = *headS;
-    int totalDispatched = 0;
-    double totalWeightDispatched = 0;
-
-    while (s != NULL) {
-        if (s->status == 0) {
-            int hasOrder = 0;
-            double currentLoad = 0;
-            order *o = *headO;
-
-            while (o != NULL) {
-                if (o->status == 0 && o->priority == s->prioritySP && (currentLoad + o->weight) <= s->weight) {
-                    if (hasOrder == 0) {
-                        fprintf(f, "SHIPPER: [%-5s] - Name: %-20s | Type: %-10s | Max Load: %.2f kg\n",
-                                s->code, s->Name, (s->prioritySP == 1 ? "EXPRESS" : "NORMAL"), s->weight);
-                        fprintf(f, "  +-------+------------+----------------------+------------+------------+\n");
-                        fprintf(f, "  | NO.   | ORDER ID   | CUSTOMER NAME        | WEIGHT     | STATUS     |\n");
-                        fprintf(f, "  +-------+------------+----------------------+------------+------------+\n");
-                    }
-                    o->status = 1;
-                    currentLoad += o->weight;
-                    hasOrder++;
-                    totalDispatched++;
-                    totalWeightDispatched += o->weight;
-                    fprintf(f, "  | %-5d | %-10.10s | %-20.20s | %-7.2f kg | %-10.10s |\n",
-                            hasOrder, o->code, o->customerName, o->weight, "ASSIGNED");
-                    printf("[+] Order [%s] -> Shipper [%s]\n", o->code, s->code);
-                }
-                o = o->next;
-            }
-
-            if (hasOrder > 0) {
-                s->status = 1;
-                fprintf(f, "  +-------+------------+----------------------+------------+------------+\n");
-                fprintf(f, "  >> Actual Payload: %.2f kg\n\n", currentLoad);
-                fprintf(f, "------------------------------------------------------------------------------------------\n\n");
-            }
+    if (f) {
+        fprintf(f, "================================================================================\n");
+        fprintf(f, "                      BAO CAO DIEU PHOI DON HANG                              \n");
+        fprintf(f, "              Ngay: %-12s          Gio: %-10s               \n", dateStr, timeStr);
+        fprintf(f, "================================================================================\n\n");
+        fprintf(f, "  %-6s | %-20s | %-20s | %-8s | %-12s | %-10s\n",
+                "MA DON", "TEN HANG", "KHACH HANG", "CAN NANG", "TRANG THAI", "PHI (VND)");
+        fprintf(f, "  -------+----------------------+----------------------+----------+--------------+------------\n");
+        int cntOk = 0, cntFail = 0;
+        for (order *o = *headO; o != NULL; o = o->next) {
+            const char *st; double fee = 0;
+            if      (o->status == 0) { st = "Pending";   cntFail++; }
+            else if (o->status == 1) { st = "Shipping";  cntOk++; }
+            else                     { st = "Delivered"; fee = o->fee; cntOk++; }
+            fprintf(f, "  %-6.6s | %-20.20s | %-20.20s | %5.2f kg | %-12.12s | %10.2f\n",
+                    o->code, o->orderName, o->customerName, o->weight, st, fee);
         }
-        s = s->next;
+        fprintf(f, "\n================================================================================\n");
+        fprintf(f, "  TONG KET:\n");
+        fprintf(f, "  - Da duoc xu ly (Shipping + Delivered) : %d don\n", cntOk);
+        fprintf(f, "  - Chua duoc phan cong    (Pending)     : %d don\n", cntFail);
+        fprintf(f, "  - Tong can nang da phan cong           : %.2f kg\n", totalWeight);
+        fprintf(f, "================================================================================\n");
+        fclose(f);
+        printf("\n  [OK] Da luu -> 'dispatch_report.txt'\n");
+        system("start notepad dispatch_report.txt");
     }
 
-    fprintf(f, "==========================================================================================\n");
-    fprintf(f, "                                 DISPATCH SESSION SUMMARY                                \n");
-    fprintf(f, "  - Total Orders Assigned:   %d units\n", totalDispatched);
-    fprintf(f, "  - Total Weight Delivered:  %.2f kg\n", totalWeightDispatched);
-    fprintf(f, "==========================================================================================\n");
-
-    fclose(f);
-    printf("\n[SUCCESS] Report exported to 'dispatch_report.txt'!\n");
-    system("start notepad dispatch_report.txt");
-    printf("Press Enter to return...");
-    getch();
+    printf("\n  Nhan phim bat ky de quay lai...");
+    _getch();
 }
 
-// ===================== OPTION 3 - SMART COORDINATION =====================
+// ================================================================
+//  CHUC NANG 2: ANIMATION SHIPPER GIAO HANG
+//  * Ban do 30x30 hinh vuong (2 ky tu/o)
+//  * Khong nháy: dung gotoXY ghi de len man hinh
+//  * Don dau: xuat phat tu kho W(0,0)
+//  * Don tiep: tiep tuc tu vi tri vua giao, tim don GAN NHAT (BFS)
+// ================================================================
+void animateDelivery(order **headO, shipper **headS) {
+    system("cls");
+    enableAnsiControl();
+
+    int hasShipping = 0;
+    for (order *o = *headO; o != NULL; o = o->next)
+        if (o->status == 1) { hasShipping = 1; break; }
+    if (!hasShipping) {
+        printf("\n  [!] Khong co don Shipping nao!\n");
+        printf("      Hay dieu phoi don hang truoc (chuc nang [1]).\n");
+        printf("\n  Nhan phim bat ky de quay lai...");
+        _getch(); return;
+    }
+
+    time_t t = time(NULL);
+    struct tm ti = *localtime(&t);
+    char dateStr[20], timeStr[20];
+    strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
+
+    /* Ban do nen */
+    char baseMap[MAP_SIZE][MAP_SIZE];
+    initMap(baseMap);
+    placeOrders(baseMap, *headO);
+
+    /* Vi tri hien tai cua shipper - bat dau tu kho */
+    int curR = WH_ROW, curC = WH_COL;
+
+    /* Bao cao */
+    int  reportCount = 0, totalDone = 0;
+    char rCode[100][6]; char rCust[100][30];
+    int  rSteps[100];   int  rOk[100];
+
+    hideCursor();
+    printf("\x1b[2J\x1b[H");
+
+    /* Toa do frame animation co dinh tren terminal (0-based) */
+    const int mapContentStartRow = 5; /* sau 3 dong header + 1 dong trong + vien tren map */
+    const int mapContentStartCol = 3; /* "  |" truoc ky tu o dau tien */
+    const int statusRow = mapContentStartRow + MAP_SIZE + 2;
+    int doneMsgRow = statusRow + 1;
+
+    while (1) {
+        /* Tim don Shipping gan nhat tu vi tri hien tai */
+        order *o = findNearest(*headO, baseMap, curR, curC);
+        if (o == NULL) break;  /* Het don */
+
+        int er = clampVal(o->x, 0, MAP_SIZE - 1);
+        int ec = clampVal(o->y, 0, MAP_SIZE - 1);
+
+        strncpy(rCode[reportCount], o->code, 5);
+        rCode[reportCount][5] = '\0';
+        strncpy(rCust[reportCount], o->customerName, 29);
+        rCust[reportCount][29] = '\0';
+
+        MapPoint path[MAP_SIZE * MAP_SIZE]; int pathLen = 0;
+        char tmpMap[MAP_SIZE][MAP_SIZE];
+        memcpy(tmpMap, baseMap, sizeof(baseMap));
+
+        if (!bfsFind(tmpMap, curR, curC, er, ec, path, &pathLen)) {
+            /* Khong tim duoc duong - bo qua don nay */
+            rOk[reportCount] = 0; rSteps[reportCount] = 0; reportCount++;
+            o->status = 2;
+            continue;
+        }
+
+        /* Ve frame 1 lan cho moi don, sau do chi cap nhat o da thay doi */
+        {
+            char animMap[MAP_SIZE][MAP_SIZE];
+            memcpy(animMap, baseMap, sizeof(baseMap));
+            if (pathLen > 0) {
+                int sr0 = path[0].x, sc0 = path[0].y;
+                if (animMap[sr0][sc0] != SYM_WAREHOUSE) animMap[sr0][sc0] = SYM_SHIPPER;
+            }
+
+            gotoXY(0, 0);
+            printf("  +----------------------------------------------------------------+\n");
+            printf("  |  DANG GIAO DON: %-6.6s  | KH: %-29.29s |\n", o->code, o->customerName);
+            printf("  +----------------------------------------------------------------+\n\n");
+            printMapSquare(animMap);
+            printLegendBFS();
+            printf("  Trang thai: Dang mo phong duong di (cap nhat o, khong redraw map). \n");
+            fflush(stdout);
+        }
+
+        for (int step = 1; step < pathLen; step++) {
+            int pr = path[step - 1].x, pc = path[step - 1].y;
+            int cr = path[step].x, cc = path[step].y;
+
+            /* O vua di qua: luu vet duong '=' neu o trong */
+            if (baseMap[pr][pc] == SYM_EMPTY) {
+                baseMap[pr][pc] = SYM_PATH;
+                gotoXY(mapContentStartRow + pr, mapContentStartCol + pc * 2);
+                printf("%c", SYM_PATH);
+            } else if (baseMap[pr][pc] != SYM_WAREHOUSE) {
+                gotoXY(mapContentStartRow + pr, mapContentStartCol + pc * 2);
+                printf("%c", baseMap[pr][pc]);
+            }
+
+            /* O hien tai cua shipper */
+            if (baseMap[cr][cc] != SYM_WAREHOUSE) {
+                gotoXY(mapContentStartRow + cr, mapContentStartCol + cc * 2);
+                printf("%c", SYM_SHIPPER);
+            }
+
+            gotoXY(statusRow, 2);
+            printf("  Trang thai: Don %-6.6s dang di (%2d/%-2d).                     ",
+                   o->code, step, pathLen - 1);
+            fflush(stdout);
+            Sleep(500);
+        }
+
+        /* Giao xong */
+        o->status = 2;
+        baseMap[er][ec] = SYM_DELIVERED;
+        gotoXY(mapContentStartRow + er, mapContentStartCol + ec * 2);
+        printf("%c", SYM_DELIVERED);
+        gotoXY(doneMsgRow, 2);
+        printf("  [DONE] Da giao xong don %-6.6s cho KH %-29.29s",
+               o->code, o->customerName);
+        fflush(stdout);
+        doneMsgRow++;
+        gotoXY(statusRow, 2);
+        printf("  Trang thai: Dang tim don tiep theo...                          ");
+        fflush(stdout);
+        Sleep(500);
+        totalDone++;
+        curR = er; curC = ec;   /* Cap nhat vi tri */
+
+        rOk[reportCount] = 1;
+        rSteps[reportCount] = pathLen - 1;
+        reportCount++;
+    }
+    showCursor();
+
+    /* ===== KET QUA CUOI ===== */
+    system("cls");
+    char finalMap[MAP_SIZE][MAP_SIZE];
+    initMap(finalMap);
+    placeOrders(finalMap, *headO);
+
+    printf("\n");
+    printf("  +----------------------------------------------------------------+\n");
+    printf("  |           HOAN THANH CHUYEN GIAO - KET QUA CUOI              |\n");
+    printf("  |  Ngay: %-12s               Gio: %-10s              |\n", dateStr, timeStr);
+    printf("  +----------------------------------------------------------------+\n\n");
+    printMapSquare(finalMap);
+    printLegendBFS();
+
+    printf("\n");
+    printf("  +------+----------+------------------+------------+\n");
+    printf("  |  STT | MA DON   | KET QUA          | SO BUOC    |\n");
+    printf("  +------+----------+------------------+------------+\n");
+    for (int i = 0; i < reportCount; i++) {
+        printf("  | %-4d | %-8s | %-16s | %-9d |\n",
+               i + 1, rCode[i],
+               rOk[i] ? "GIAO THANH CONG" : "KHONG TIM DUOC",
+               rSteps[i]);
+    }
+    printf("  +------+----------+------------------+------------+\n");
+    printf("  +-------------------------------------------------+\n");
+    printf("  |  Tong giao thanh cong: %-3d don                 |\n", totalDone);
+    printf("  +-------------------------------------------------+\n");
+
+    /* Ghi file */
+    FILE *f = fopen("animation_report.txt", "w");
+    if (f) {
+        fprintf(f, "================================================================================\n");
+        fprintf(f, "                    BAO CAO MO PHONG GIAO HANG                                \n");
+        fprintf(f, "              Ngay: %-12s          Gio: %-10s               \n", dateStr, timeStr);
+        fprintf(f, "================================================================================\n\n");
+        fprintf(f, "  %-4.4s | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9.9s\n",
+                "STT", "MA DON", "TEN HANG", "KHACH HANG", "KET QUA", "SO BUOC");
+        fprintf(f, "  -----+--------+----------------------+----------------------+------------------+-----------\n");
+        int idx = 0;
+        for (order *o2 = *headO; o2 != NULL && idx < reportCount; o2 = o2->next) {
+            if (o2->status != 2) continue;
+            fprintf(f, "  %-4d | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9d\n",
+                    idx + 1, rCode[idx], o2->orderName, rCust[idx],
+                    rOk[idx] ? "GIAO THANH CONG" : "KHONG TIM DUOC",
+                    rSteps[idx]);
+            idx++;
+        }
+        fprintf(f, "\n================================================================================\n");
+        fprintf(f, "  TONG KET:\n");
+        fprintf(f, "  - Tong don giao thanh cong  : %d don\n", totalDone);
+        fprintf(f, "  - Tong don khong tim duoc   : %d don\n", reportCount - totalDone);
+        fprintf(f, "================================================================================\n");
+        fclose(f);
+        printf("\n  [OK] Da luu -> 'animation_report.txt'\n");
+        system("start notepad animation_report.txt");
+    }
+
+    printf("\n  Nhan phim bat ky de quay lai...");
+    _getch();
+}
+
+// ================================================================
+//  CHUC NANG 3: TONG QUAN KHO HANG
+//  So do mat bang: 9 khu, moi khu = khoi 3x3 ky hieu ###
+//  Sap xep 3 hang x 3 cot, giua cac khu cach 1 o trong
+// ================================================================
+void warehouseOverview(order **headO, shipper **headS) {
+    system("cls");
+
+    int cntP = 0, cntG = 0, cntD = 0;
+    for (order *o = *headO; o != NULL; o = o->next) {
+        if      (o->status == 0) cntP++;
+        else if (o->status == 1) cntG++;
+        else                     cntD++;
+    }
+    int totalO = cntP + cntG + cntD;
+
+    int cntFree = 0, cntBusy = 0;
+    for (shipper *s = *headS; s != NULL; s = s->next) {
+        if (s->status == 0) cntFree++;
+        else                cntBusy++;
+    }
+    int totalS = cntFree + cntBusy;
+
+    time_t t = time(NULL);
+    struct tm ti = *localtime(&t);
+    char dateStr[20], timeStr[20];
+    strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
+
+    /* Thong ke tong quat */
+    printf("\n");
+    printf("  ============================================================\n");
+    printf("           TONG QUAN KHO HANG - SMART DELIVERY              \n");
+    printf("          Ngay: %-12s           Gio: %-10s            \n", dateStr, timeStr);
+    printf("  ============================================================\n");
+    printf("  Don hang | Tong:%-3d  P(cho):%-3d  G(dang):%-3d  D(xong):%-3d\n",
+           totalO, cntP, cntG, cntD);
+    printf("  Shipper  | Tong:%-3d  Ranh: %-3d  Dang ban: %-3d\n\n",
+           totalS, cntFree, cntBusy);
+
+    if (totalO == 0)
+        printf("  >> Kho trong, chua co don hang.\n");
+    else if (cntP == 0)
+        printf("  >> Tat ca don hang da duoc xu ly!\n");
+    else if (cntP > 5)
+        printf("  >> [CANH BAO] Kho qua tai! Con %d don dang cho.\n", cntP);
+    else
+        printf("  >> On dinh. Con %d don cho giao.\n", cntP);
+    if (cntFree == 0 && cntP > 0)
+        printf("  >> [CANH BAO] Khong con shipper ranh!\n");
+
+    /* ----------------------------------------------------------------
+       SO DO MAT BANG: 9 khu (3 hang x 3 cot)
+       Moi khu = 3 hang ###, ten khu o tren, cach khu ben phai = 3 dau cach
+       Cach khu ben duoi = 1 dong trong
+    ---------------------------------------------------------------- */
+    printf("\n");
+    printf("  ============================================================\n");
+    printf("                   SO DO MAT BANG KHO HANG                  \n");
+    printf("  ============================================================\n\n");
+
+    /* Ten cac khu (3x3 = 9 khu) */
+    const char *tenKhu[3][3] = {
+        {"[KHU A1]", "[KHU A2]", "[KHU A3]"},
+        {"[KHU B1]", "[KHU B2]", "[KHU B3]"},
+        {"[KHU C1]", "[KHU C2]", "[KHU C3]"}
+    };
+
+    printf("  +-----------------------------------------------------------+\n");
+    printf("  |                    KHUNG MO PHONG KHO                    |\n");
+    printf("  +-----------------------------------------------------------+\n");
+
+    /*
+       Moi khu duoc ve thanh 1 o co vien:
+       +---------+
+       | [KHU A1]|
+       |   ###   |
+       |   ###   |
+       |   ###   |
+       +---------+
+    */
+    for (int bi = 0; bi < 3; bi++) {
+        printf("  |  +---------+    +---------+    +---------+  |\n");
+        printf("  |  | %-8s|    | %-8s|    | %-8s|  |\n",
+               tenKhu[bi][0], tenKhu[bi][1], tenKhu[bi][2]);
+        for (int row = 0; row < 3; row++) {
+            printf("  |  |   ###   |    |   ###   |    |   ###   |  |\n");
+        }
+        printf("  |  +---------+    +---------+    +---------+  |\n");
+        printf("\n");
+    }
+    printf("  +-----------------------------------------------------------+\n");
+
+    /* Chu thich */
+    printf("  -----------------------------------------------------------\n");
+    printf("  Chu thich:\n");
+    printf("    ### = Khu luu tru hang hoa (moi khu = 1 vung mat bang)\n");
+    printf("    [W] = Kho xuat phat chinh tai toa do (0, 0) tren ban do\n");
+    printf("    Tong: 9 khu  |  A1-A3: Hang tren  |  B1-B3: Hang giua  |  C1-C3: Hang duoi\n");
+    printf("  -----------------------------------------------------------\n");
+
+    /* Ghi file */
+    FILE *f = fopen("warehouse_overview.txt", "w");
+    if (f) {
+        fprintf(f, "================================================================================\n");
+        fprintf(f, "                    BAO CAO TONG QUAN KHO HANG                                \n");
+        fprintf(f, "              Ngay: %-12s          Gio: %-10s               \n", dateStr, timeStr);
+        fprintf(f, "================================================================================\n\n");
+        fprintf(f, "  [DON HANG]  Tong: %-3d  |  Pending(P): %-3d  |  Shipping(G): %-3d  |  Delivered(D): %-3d\n",
+                totalO, cntP, cntG, cntD);
+        fprintf(f, "  [SHIPPER]   Tong: %-3d  |  Ranh: %-3d        |  Dang ban: %-3d\n\n",
+                totalS, cntFree, cntBusy);
+
+        if (totalO == 0) fprintf(f, "  >> Kho trong.\n");
+        else if (cntP == 0) fprintf(f, "  >> Tat ca don da xu ly!\n");
+        else if (cntP > 5) fprintf(f, "  >> [CANH BAO] Kho qua tai! Con %d don Pending.\n", cntP);
+        else fprintf(f, "  >> On dinh. Con %d don cho giao.\n", cntP);
+        if (cntFree == 0 && cntP > 0) fprintf(f, "  >> [CANH BAO] Khong con shipper ranh!\n");
+
+        fprintf(f, "\n--------------------------------------------------------------------------------\n");
+        fprintf(f, "  DANH SACH DON HANG:\n");
+        fprintf(f, "--------------------------------------------------------------------------------\n");
+        fprintf(f, "  %-6s | %-20s | %-20s | %-9s | %-10s | %-8s\n",
+                "MA DON", "TEN HANG", "KHACH HANG", "TRANG THAI", "PHI (VND)", "TOA DO");
+        fprintf(f, "  -------+----------------------+----------------------+-----------+------------+----------\n");
+        for (order *o = *headO; o != NULL; o = o->next) {
+            const char *st = (o->status==0)?"Pending":(o->status==1)?"Shipping":"Delivered";
+            double fee = (o->status == 2) ? o->fee : 0.0;
+            fprintf(f, "  %-6.6s | %-20.20s | %-20.20s | %-9.9s | %10.2f | (%2d,%2d)\n",
+                    o->code, o->orderName, o->customerName, st, fee, o->x, o->y);
+        }
+        if (totalO == 0) fprintf(f, "  (Chua co don hang nao)\n");
+
+        fprintf(f, "\n--------------------------------------------------------------------------------\n");
+        fprintf(f, "  DANH SACH SHIPPER:\n");
+        fprintf(f, "--------------------------------------------------------------------------------\n");
+        fprintf(f, "  %-6s | %-20s | %-14s | %-11s | %-10s | %-8s\n",
+                "MA SP", "TEN SHIPPER", "CCCD", "LOAI", "TRANG THAI", "TAI(KG)");
+        fprintf(f, "  -------+----------------------+----------------+-------------+------------+----------\n");
+        for (shipper *s = *headS; s != NULL; s = s->next) {
+            const char *type = (s->prioritySP==1) ? "Hoa toc" : "Binh thuong";
+            const char *st   = (s->status==0)     ? "Ranh"    : "Dang ban";
+            fprintf(f, "  %-6.6s | %-20.20s | %-14lld | %-11.11s | %-10.10s | %.2f\n",
+                    s->code, s->Name, s->CCCD, type, st, s->weight);
+        }
+        if (totalS == 0) fprintf(f, "  (Chua co shipper nao)\n");
+
+        fprintf(f, "\n================================================================================\n");
+        fprintf(f, "  GHI CHU:  P = Pending (cho giao)  |  G = Shipping (dang giao)  |  D = Delivered\n");
+        fprintf(f, "================================================================================\n");
+        fclose(f);
+        printf("\n  [OK] Da luu -> 'warehouse_overview.txt'\n");
+        system("start notepad warehouse_overview.txt");
+    }
+
+    printf("\n  Nhan phim bat ky de quay lai...");
+    _getch();
+}
+
+// ================================================================
+//  CHUC NANG 4: GOI Y DUONG DI TOI UU (ban do BFS, map vuong)
+// ================================================================
+void suggestOptimalRoute(order **headO, shipper **headS) {
+    system("cls");
+
+    char baseMap[MAP_SIZE][MAP_SIZE];
+    initMap(baseMap);
+    placeOrders(baseMap, *headO);
+    placeShippers(baseMap, *headS);
+
+    time_t t = time(NULL);
+    struct tm ti = *localtime(&t);
+    char dateStr[20], timeStr[20];
+    strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
+
+    printf("\n");
+    printf("  ============================================================\n");
+    printf("              GOI Y DUONG DI TOI UU - BFS                   \n");
+    printf("    Ngay: %-12s           Gio: %-10s            \n", dateStr, timeStr);
+    printf("  ============================================================\n");
+    printf("  Kho xuat phat: W(%d,%d) | Thuat toan: BFS\n\n", WH_ROW, WH_COL);
+
+    printf("  [BAN DO TONG QUAN]\n");
+    printMapSquare(baseMap);
+    printLegendBFS();
+
+    int orderNum = 0, foundPath = 0;
+
+    for (order *o = *headO; o != NULL; o = o->next) {
+        if (o->status != 0) continue;
+        orderNum++;
+
+        int er = clampVal(o->x, 0, MAP_SIZE - 1);
+        int ec = clampVal(o->y, 0, MAP_SIZE - 1);
+
+        printf("\n  ----------------------------------------------------------\n");
+        printf("  Don %d: %-6s | KH: %-20s | Toa do:(%d,%d)\n",
+               orderNum, o->code, o->customerName, er, ec);
+        printf("  ----------------------------------------------------------\n");
+
+        char routeMap[MAP_SIZE][MAP_SIZE];
+        memcpy(routeMap, baseMap, sizeof(baseMap));
+        MapPoint path[MAP_SIZE * MAP_SIZE]; int pathLen = 0;
+
+        if (bfsFind(routeMap, WH_ROW, WH_COL, er, ec, path, &pathLen)) {
+            foundPath++;
+            for (int i = 1; i < pathLen - 1; i++) {
+                int r = path[i].x, c = path[i].y;
+                if (routeMap[r][c] == SYM_EMPTY) routeMap[r][c] = SYM_PATH;
+            }
+            printMapSquare(routeMap);
+            printf("  Khoang cach: %d buoc  |  Uu tien: %s  |  Can nang: %.1f kg\n",
+                   pathLen - 1,
+                   (o->priority == 1) ? "HOA TOC" : "BINH THUONG",
+                   o->weight);
+        } else {
+            printf("  [!] KHONG TIM DUOC DUONG DI (bi chan boi chuong ngai vat)\n");
+        }
+    }
+
+    if (orderNum == 0)
+        printf("\n  [!] Khong co don Pending nao de goi y!\n");
+    else {
+        printf("\n  ============================================================\n");
+        printf("  Tong Pending: %d  |  Tim duoc: %d  |  Khong tim duoc: %d\n",
+               orderNum, foundPath, orderNum - foundPath);
+        printf("  ============================================================\n");
+    }
+
+    /* Ghi file */
+    FILE *f = fopen("route_report.txt", "w");
+    if (f) {
+        fprintf(f, "================================================================================\n");
+        fprintf(f, "                     BAO CAO GOI Y DUONG DI TOI UU                            \n");
+        fprintf(f, "              Ngay: %-12s          Gio: %-10s               \n", dateStr, timeStr);
+        fprintf(f, "================================================================================\n\n");
+        fprintf(f, "  Kho xuat phat: W(%d, %d)  |  Thuat toan: BFS (tim duong ngan nhat)\n\n",
+                WH_ROW, WH_COL);
+        fprintf(f, "  %-4s | %-6s | %-20s | %-20s | %-9s | %-8s | %-14s\n",
+                "STT", "MA DON", "TEN HANG", "KHACH HANG", "TOA DO", "SO BUOC", "KET QUA");
+        fprintf(f, "  -----+--------+----------------------+----------------------+-----------+----------+----------------\n");
+
+        char tmpBase[MAP_SIZE][MAP_SIZE];
+        initMap(tmpBase); placeOrders(tmpBase, *headO);
+
+        int num2 = 0, found2 = 0;
+        for (order *o = *headO; o != NULL; o = o->next) {
+            if (o->status != 0) continue;
+            num2++;
+            int er = clampVal(o->x, 0, MAP_SIZE - 1);
+            int ec = clampVal(o->y, 0, MAP_SIZE - 1);
+            char tm2[MAP_SIZE][MAP_SIZE];
+            memcpy(tm2, tmpBase, sizeof(tmpBase));
+            MapPoint path[MAP_SIZE * MAP_SIZE]; int pl = 0;
+            int ok = bfsFind(tm2, WH_ROW, WH_COL, er, ec, path, &pl);
+            if (ok) found2++;
+            fprintf(f, "  %-4d | %-6.6s | %-20.20s | %-20.20s | (%2d,%2d)   | %-8d | %-14.14s\n",
+                    num2, o->code, o->orderName, o->customerName,
+                    er, ec, ok ? pl - 1 : 0,
+                    ok ? "TIM DUOC" : "KHONG TIM DUOC");
+        }
+        fprintf(f, "\n================================================================================\n");
+        fprintf(f, "  TONG KET:\n");
+        fprintf(f, "  - Tong don Pending      : %d don\n", num2);
+        fprintf(f, "  - Tim duoc duong di     : %d don\n", found2);
+        fprintf(f, "  - Khong tim duoc duong  : %d don\n", num2 - found2);
+        fprintf(f, "================================================================================\n");
+        fclose(f);
+        printf("\n  [OK] Da luu -> 'route_report.txt'\n");
+        system("start notepad route_report.txt");
+    }
+
+    printf("\n  Nhan phim bat ky de quay lai...");
+    _getch();
+}
+
+// ================================================================
+//  OPTION 3 - MENU CHINH
+// ================================================================
 int Smart_Coordination(order **headO, shipper **headS) {
-    int countChoice = 0;
-    int choiceTwo;
+    int countWrong = 0;
+    int choice;
 
-    do {
+    while (1) {
         system("cls");
-        printf("\n================ SMART COORDINATION ================\n");
-        printf("  1. Tu dong dieu phoi don hang theo uu tien\n");
-        printf("  2. Goi y duong di toi uu cho shipper (MAP + BFS)\n");
-        printf("  3. Quay lai menu chinh\n");
-        printf("====================================================\n\n");
+        printf("\n");
+        printf("  ================================================\n");
+        printf("  =       3. SMART COORDINATION MENU            =\n");
+        printf("  ================================================\n");
+        printf("  = [1]. Tu dong dieu phoi don hang             =\n");
+        printf("  = [2]. Mo phong giao hang (animation)         =\n");
+        printf("  = [3]. Tong quan kho hang (so do mat bang)    =\n");
+        printf("  = [4]. Goi y duong di toi uu (BFS)            =\n");
+        printf("  = [5]. Quay lai menu chinh                    =\n");
+        printf("  ================================================\n\n");
 
-        if (countChoice == 3) {
-            printf("\n[!] Nhap sai qua nhieu lan. Khoa tinh nang!\n");
-            system("pause");
+        if (countWrong >= 3) {
+            printf("  [!] Nhap sai qua 3 lan. Khoa tinh nang!\n");
+            printf("  Nhan phim bat ky de quay lai...");
+            _getch();
             return -1;
         }
 
-        printf("Enter your choice(1-3): ");
-        scanf("%d", &choiceTwo);
+        printf("  Enter your choice (1-5): ");
+        fflush(stdin);
+        scanf("%d", &choice);
 
-        switch (choiceTwo) {
-            case 1:
-                dispatchOrders(headO, headS);
-                countChoice = 0;
-                break;
-            case 2:
-                suggestOptimalRoute(headO, headS);
-                countChoice = 0;
-                break;
-            case 3:
-                return 0;
+        switch (choice) {
+            case 1: dispatchOrders(headO, headS);      countWrong = 0; break;
+            case 2: animateDelivery(headO, headS);     countWrong = 0; break;
+            case 3: warehouseOverview(headO, headS);   countWrong = 0; break;
+            case 4: suggestOptimalRoute(headO, headS); countWrong = 0; break;
+            case 5: return 0;
             default:
-                printf("\nLua chon khong hop le!\n");
-                ++countChoice;
-                Sleep(1000);
+                printf("\n  [!] Hay nhap so tu 1 den 5.\n");
+                countWrong++;
+                Sleep(800);
                 break;
         }
-    } while (choiceTwo != 3);
-
+    }
     return 0;
 }
