@@ -168,21 +168,106 @@ void SaveOrder(order **headO){
 	printf("\n===There are %d orders in the file===\n", count);//Co %d don hang duoc nhap vao file
 	else printf("\n===No orders have been entered into the file\n");//Khong co don hang nao duoc nhap vao file
 }
+void UpdateOrder(order **head){
+	int number;
+	int cnt = 0;
+	do{
+		if(cnt==3){
+			printf("\nExit the program.....");
+			return;
+		}
+		printf("Enter the order number you want to edit(>=1): ");
+		scanf("%d", &number);
+		++cnt;
+	}while(number<1);
+	order *temp = *head;
+	//tim vi tri can sua
+	while(number != 1){
+		temp = temp->next;
+		number--;
+		if(temp == NULL){
+			printf("\n====There are no orders at this location====");
+			return;
+		}
+	}
+	while(1){
+		system("cls");
+		printf("\nEditing the order code [%s]", temp->code);
+		printf("\n1.Customer name"
+				"\n2.Product name"
+				"\n3.Delivery address(x, y)"
+				"\n4.Freight volume"
+				"\n5.Priority level(0: Normal, 1: Express)"
+				"\n6.Order status(0: Pending, 1: Shipping, 2: Delivered)"
+				"\n7.Delivery time"
+				"\n0.Exit");
+		int n;
+		printf("\nPlease enter the field you want to edit(1-7): ");
+		scanf("%d", &n);
+		if(n==0){
+			printf("Exiting update menu...\n");
+            break;
+		}
+		switch(n){
+			case 1:  
+				printf("Enter customer name new: ");
+				getchar(); 
+				fgets(temp->customerName, sizeof(temp->customerName), stdin); 
+				temp->customerName[strcspn(temp->customerName, "\n")]=0;
+				break;
+			case 2:
+				printf("Enter product name new: ");
+				getchar();
+				fgets(temp->orderName, sizeof(temp->orderName), stdin);
+				temp->orderName[strcspn(temp->orderName, "\n")]=0;
+				break;
+			case 3:
+				printf("Enter delivery address new: ");
+				scanf("%d %d", &temp->x, &temp->y);
+				break;
+			case 4:
+				printf("Enter freight volume new: ");
+				scanf("%lf", &temp->weight);
+				break;
+			case 5:
+				do{
+					printf("Enter priority: ");
+					scanf("%d", &temp->priority);
+				}while(temp->priority != 0 && temp->priority != 1);
+				break;
+			case 6:
+				do{
+					printf("Enter order status: ");
+					scanf("%d", &temp->status);
+				}while(temp->status != 0 && temp->status != 1 && temp->status != 2);
+				break;
+			case 7:
+				printf("Enter time delivery: ");
+				scanf("%d%d%d", &temp->date.day, &temp->date.month, &temp->date.year);
+				break;
+			default :
+				printf("Invalid selection!");
+                break;
+			}
+			printf("\n=> Update successful!");
+		}
+}
 //OPTION 1
 int Order_Management(order **headO, shipper **headS){
 	int countChoice = 0;
 	int choiceTwo;
 	printf("\n1. Add a new order"
 			"\n2. Sort order date"
-			"\n3. Find order\n\n");
+			"\n3. Find order"
+			"\n4. Update order\n\n");
 	do{
 		if(countChoice==3){
 			return -1;
 		}		
-		printf("Enter your choice(1-3): ");
+		printf("Enter your choice(1-4): ");
 		scanf("%d", &choiceTwo);
 		++countChoice;
-	}while(choiceTwo>3 || choiceTwo<1);
+	}while(choiceTwo>4 || choiceTwo<1);
 	switch(choiceTwo){
 		case 1: 
 			addOrder(headO);
@@ -192,6 +277,9 @@ int Order_Management(order **headO, shipper **headS){
 			break;	
 		case 3:
 			FindOrder(headO);
+			break;
+		case 4:
+			UpdateOrder(headO);
 			break;
 	}
 }
