@@ -185,30 +185,73 @@ void deleteShipper (shipper **headS) {
     informationShipper (headS);
 }
 
-int Shipper_Management(order** headO,shipper **headS) {
-    int countChoice = 0;
-    int choiceTwo;
-    printf("\n1. Register as a new Shipper"
-           "\n2. Delete Shipper"
-           "\n3. List Shipper\n\n");
-    do {
-        if(countChoice==3) {
-            return -1;
+void Draw_ShipperMenu(int pointer) {
+    char *options[] = {
+        "Register as a new Shipper",
+        "Delete Shipper",
+        "List Shipper (Open Notepad)",
+        "BACK TO MAIN MENU"
+    };
+
+    printf("================================================\n");
+    printf("=              SHIPPER MANAGEMENT              =\n");
+    printf("================================================\n");
+
+    for (int i = 0; i < 4; i++) {
+        if (i == pointer) {
+            printf("= ");
+            setColor(0, 15); // Highlight: Chu den, nen trang
+            printf("> %-40s", options[i]);
+            setColor(15, 0); 
+            printf(" =\n");
+        } else {
+            printf("=   %-42s =\n", options[i]);
         }
-        printf("Enter your choice(1-3): ");
-        scanf("%d", &choiceTwo);
-        while (getchar() != '\n'); 
-        ++countChoice;
-    } while(choiceTwo>3 || choiceTwo<1);
-    switch(choiceTwo) {
-    case 1:
-        registerShipper(headS);
-        break;
-    case 2:
-        deleteShipper(headS);
-        break;
-    case 3:
-    	system("notepad Shipper_information.txt");
-    	break;
+    }
+    printf("================================================\n");
+}
+int Shipper_Management(order **headO, shipper **headS) {
+    int pointer = 0;
+    char key;
+
+    while (1) {
+        system("cls");
+        Draw_ShipperMenu(pointer);
+        
+        key = getch();
+
+        if (key == -32) { // Bat phím mui tên
+            key = getch();
+            if (key == 72) { // Lên
+                if (pointer > 0) pointer--;
+                else pointer = 3; 
+            } else if (key == 80) { // Xuong
+                if (pointer < 3) pointer++;
+                else pointer = 0; 
+            }
+        } 
+        else if (key == 13) { // Phím Enter
+            system("cls");
+            if (pointer == 3) return 0;
+
+            switch (pointer) {
+                case 0:
+                    registerShipper(headS);
+                    break;
+                case 1:
+                    deleteShipper(headS);
+                    break;
+                case 2:
+                    printf("Opening Shipper_information.txt in Notepad...\n");
+                    system("notepad Shipper_information.txt");
+                    break;
+            }
+            //Cho xem ket qua, ngoai tru truong hop 2 vi 2 la mo file
+            if (pointer != 2) {
+                printf("\n------------------------------------------\n");
+                printf("Action completed. Press any key to return.");
+                getch();
+            }
+        }
     }
 }
