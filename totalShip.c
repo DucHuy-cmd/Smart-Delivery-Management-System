@@ -1,3 +1,4 @@
+#include "Lib.h"
 double totalShip(order *headO){
     double total = 0;
     if(headO == NULL) return 0.0;
@@ -47,7 +48,7 @@ void compileReport(order **headO, shipper **headS, char file[]){
             fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2f\n",tempO->code, tempO->customerName, tempO->weight,"Shipping",0.0);
         }
         if(tempO->status == 2){
-            fprintf(f,"%-7s |%-20s |%-10.2lf |%-10s |%-10.2lf\n",tempO->code, tempO->customerName, tempO->weight,"Delivered",tempO->fee);
+            fprintf(f,"%-7s |%-20s |%-10.2f |%-10s |%-10.2lf\n",tempO->code, tempO->customerName, tempO->weight,"Delivered",tempO->fee);
         }
         tempO = tempO->next;
     }
@@ -56,45 +57,78 @@ void compileReport(order **headO, shipper **headS, char file[]){
 
     fprintf(f,"============================ PART III: TOTAL REVENUE ============================\n");
     fprintf(f,"---------------------------------------------------------------------------------\n");
-    fprintf(f,"                           TOTAL REVENUE EARNED:                              %.2f\n", totalShip(*headO));
+    fprintf(f,"                       TOTAL REVENUE EARNED:                                  %.2f\n", totalShip(*headO));
     fprintf(f,"---------------------------------------------------------------------------------\n");
 
     fclose(f);
     printf("DATA HAS BEEN SUCCESSFULLY WRITTEN TO FILE %s!",file);
 }
+void Draw_StatisticsMenu(int pointer) {
+    char *options[] = {
+        "Calculate the total daily revenue",
+        "Export the report (Compile_Report.txt)",
+        "BACK TO MAIN MENU"
+    };
+
+    printf("  ================================================\n");
+    printf("  |           4. STATISTICS AND REPORTS          |\n");
+    printf("  ================================================\n");
+
+    for (int i = 0; i < 3; i++) {
+        if (i == pointer) {
+            printf("  | ");
+            setColor(0, 15); // Highlight
+            printf("> [%d]. %-35s", (i == 2 ? 0 : i + 1), options[i]);
+            setColor(15, 0);
+            printf(" |\n");
+        } else {
+            printf("  |    [%d]. %-37s |\n", (i == 2 ? 0 : i + 1), options[i]);
+        }
+    }
+    printf("  ================================================\n");
+}
 //OPTION 4
 int Statistics_and_Reports(order **headO, shipper **headS) {
-    int countChoice = 0;
-    int choiceTwo;
-    do{
-    printf("\n1. Calculate the total daily revenue"
-           "\n2. Export the report"
-           "\n3.Back to menu\n\n");
-    do {
-        if(countChoice==3) {
-            return -1;
+    int pointer = 0;
+    char key;
+
+    while (1) {
+        system("cls");
+        printf("\n");
+        Draw_StatisticsMenu(pointer);
+        printf("\n  (Dung mui ten de di chuyen, ENTER de chon)");
+
+        key = getch();
+
+        if (key == -32) { // Bat phim mui ten
+            key = getch();
+            if (key == 72) { // Len
+                if (pointer > 0) pointer--;
+                else pointer = 2; 
+            } else if (key == 80) { // Xuong
+                if (pointer < 2) pointer++;
+                else pointer = 0; 
+            }
+        } 
+        else if (key == 13) { // Phim ENTER
+            system("cls");
+            if (pointer == 2) return 0; // Quay lai Menu chinh
+
+            switch (pointer) {
+                case 0:
+                    printf("\n>>> REVENUE CALCULATION <<<\n");
+                    printf("TOTAL REVENUE DAILY: %.2lf\n", totalShip(*headO));
+                    break;
+                case 1:
+                    printf("\n>>> EXPORTING DATA <<<\n");
+                    compileReport(headO, headS, "Compile_Report.txt");
+                    printf("Report has been exported successfully to 'Compile_Report.txt'.\n");
+                    break;
+            }
+
+            printf("\n------------------------------------------\n");
+            printf("Press any key to return to Statistics Menu.");
+            getch();
         }
-        printf("Enter your choice(1-3): ");
-        scanf("%d", &choiceTwo);
-        ++countChoice;
-    } while(choiceTwo>3 || choiceTwo<1);
-    switch (choiceTwo){
-        case 1:
-            printf("TOTAL REVENUE DAILY: %.2lf",totalShip(*headO);
-            break;
-        case 2:
-            compileReport(headO,headS,"Compile_Report.txt");
-            break;
-        case 3:
-            return 0;
-        default:
-            countChoice++;
-            printf("\nInvalid choice! (Attempts: %d/3)\n", countChoice);
-            break;
-}
-    printf("\nPress Enter To Return");
-    getch();
-    if(choiceTwo>=1 && choiceTwo <3) countChoice = 0;
-    if(countChoice ==3) return -1;
-}while(choiceTwo !=3);
+    }
 }
