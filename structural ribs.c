@@ -3,6 +3,11 @@
 #include<string.h>
 #include<math.h>
 #include<conio.h>
+#include<ctype.h>
+#include<time.h>
+#include<stdbool.h>
+#include<windows.h>
+#include<conio.h>
 //x, y: toa do giao hang
 typedef struct{
 	int day;
@@ -34,6 +39,8 @@ typedef struct SHIPPER{
 	int numberOrder;
 	struct SHIPPER *next;
 }shipper;
+#define PHI_SHIP 10000
+#define PHI_TAI_TRONG 5000;
 //Nhap vao so hang moi
 void addOrder(order **headO){
 	int number;
@@ -252,36 +259,81 @@ void UpdateOrder(order **head){
 			printf("\n=> Update successful!");
 		}
 }
+void Draw_OrderMenu(int pointer){
+    char *options[] = {
+        "Add a new order",
+        "Sort order date",
+        "Find order",
+        "Update order",
+        "BACK TO MAIN MENU"
+    };
+
+    printf("================================================\n");
+    printf("=               ORDER MANAGEMENT               =\n");
+    printf("================================================\n");
+
+    for (int i = 0; i < 5; i++) {
+        if (i == pointer) {
+            printf("= ");
+            setColor(0, 15); // Chu den, nen trang
+            printf("> %-40s", options[i]);
+            setColor(15, 0); // Tra lai màu cu
+            printf(" =\n");
+        } else {
+            printf("=   %-42s =\n", options[i]);
+        }
+    }
+    printf("================================================\n");
+}
 //OPTION 1
-int Order_Management(order **headO, shipper **headS){
-	int countChoice = 0;
-	int choiceTwo;
-	printf("\n1. Add a new order"
-			"\n2. Sort order date"
-			"\n3. Find order"
-			"\n4. Update order\n\n");
-	do{
-		if(countChoice==3){
-			return -1;
-		}		
-		printf("Enter your choice(1-4): ");
-		scanf("%d", &choiceTwo);
-		++countChoice;
-	}while(choiceTwo>4 || choiceTwo<1);
-	switch(choiceTwo){
-		case 1: 
-			addOrder(headO);
-			break;
-		case 2:
-			SortOrder(headO);
-			break;	
-		case 3:
-			FindOrder(headO);
-			break;
-		case 4:
-			UpdateOrder(headO);
-			break;
-	}
+int Order_Management(order **headO, shipper **headS) {
+    int pointer = 0;
+    char key;
+    
+    while(1) {
+        system("cls");
+        Draw_OrderMenu(pointer);
+        
+        key = getch();
+
+        // Xu lý phím mui tên
+        if (key == -32) {
+            key = getch();
+            if (key == 72) { // Lên
+                if (pointer > 0) pointer--;
+                else pointer = 4;
+            } else if (key == 80) { // Xuong
+                if (pointer < 4) pointer++;
+                else pointer = 0;
+            }
+        } 
+        // Xu lý phím Enter
+        else if (key == 13) {
+            system("cls");
+            if (pointer == 4) return 0; // Thoát ve Menu chính
+
+            // Gui các hàm xu lý thuc thi
+            switch (pointer) {
+                case 0: 
+                    addOrder(headO); 
+                    break;
+                case 1: 
+                    SortOrder(headO); 
+                    break;
+                case 2: 
+                    FindOrder(headO); 
+                    break;
+                case 3: 
+                    UpdateOrder(headO); 
+                    break;
+            }
+
+            // Sau khi thuc hien xong, dung lai xem ket qua
+            printf("\n------------------------------------------\n");
+            printf("Action completed. Press any key to return.");
+            getch();
+        }
+    }
 }
 //OPTION 2
 int Shipper_Management(order **headO, shipper **headS){
@@ -397,16 +449,45 @@ void clear_file(){
 		fclose(f);
 	}
 }
-void Option(){
-	printf("================================================\n");
-	printf("= %-44s =\n", "    SMART DELIVERY AND MANAGEMENT SYSTEM");
-	printf("================================================\n");
-	printf("= %-44s =\n", "[1]. ORDER MANAGEMENT");
-	printf("= %-44s =\n", "[2]. SHIPPER MANAGEMENT");
-	printf("= %-44s =\n", "[3]. SMART COORDINATION");
-	printf("= %-44s =\n", "[4]. STATISTICS AND REPORTS");
-	printf("= %-44s =\n", "[0]. EXIT PROGRAM");
-	printf("================================================\n");
+//to mau
+void setColor(int textColor, int bgColor) {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(hConsole, (bgColor << 4) | textColor);
+}
+
+// Hàm an con tro 
+void hideCursor(){
+    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_CURSOR_INFO info;
+    info.dwSize = 100;
+    info.bVisible = FALSE;
+    SetConsoleCursorInfo(consoleHandle, &info);
+}
+void Option(int pointer){
+    char *menuItems[] = {
+        "ORDER MANAGEMENT",
+        "SHIPPER MANAGEMENT",
+        "SMART COORDINATION",
+        "STATISTICS AND REPORTS",
+        "FREE MEMORY AND EXIT PROGRAM"
+    };
+
+    printf("================================================\n");
+    printf("= %-44s =\n", "    SMART DELIVERY AND MANAGEMENT SYSTEM");
+    printf("================================================\n");
+
+    for (int i = 0; i < 5; i++) {
+        if (i == pointer) {
+            printf("= ");
+            setColor(0, 15); // Chu den, nen trang
+            printf("> [%d]. %-36s", (i == 4 ? 0 : i + 1), menuItems[i]);
+            setColor(15, 0); // Tra lai màu trang, nen den
+            printf(" =\n");
+        } else {
+            printf("=   [%d]. %-37s =\n", (i == 4 ? 0 : i + 1), menuItems[i]);
+        }
+    }
+    printf("================================================\n");
 }
 //giai phong bo nho order
 void freeOrder(order **headO){
@@ -426,46 +507,54 @@ void freeShipper(shipper **headS){
 		free(temp);
 	}
 }
-//thuc hien chon de thuc hien va dieu kien neu nhap dung thi thuc hien, sai thi cho nhap lai
-//sai qua 3 lan thi khoa tai khoan		
-void SelectOption(order **headO, shipper **headS){
-	loadFileOrder(headO);
-	int choice, choiceTwo;
-	int countChoice = 0;
-	int (*Select[4])(order**, shipper**) = {Order_Management, Shipper_Management, Smart_Coordination, Statistics_and_Reports};
-	while(1){
-		Option();
-		printf("Enter your choice(0-4): ");
-		scanf("%d", &choice);
-		if(choice==0){
-			clear_file();
-			SaveOrder(headO);
-			freeOrder(headO);
-			freeShipper(headS);
-			printf("\n====SUCCESS FREE MEMORY====\n");
-			printf("\n====EXIT PROGRAM...GOOD BYE!====");
-			return;
-		}
-		else if(choice>=1 && choice<=4){
-			int check = Select[choice-1](headO, headS);
-			countChoice = 0;
-			if(check==-1){
-				printf("\n===SYSTEM LOCKED!===");
-				return;
-			}
-		}
-		else{
-			++countChoice;
-			if(countChoice>=3){
-				printf("\n===SYSTEM LOCKED!===");
-				return;
-			}
-			printf("\nYou enter the wrong %d information\n\n", countChoice);
-		}
-		printf("Press any key to return to Menu.\n");
-		getch();//an phim bat ky de quay lai menu
-		system("cls");//clear man hinh
-	}
+// Menu chinh - sau moi chuc nang can nhan phim bat ky moi quay lai
+void SelectOption(order **headO, shipper **headS) {
+    loadFileShipper(headS);
+    loadFileOrder(headO);
+    hideCursor(); // an con tro chuot
+
+    int pointer = 0; // Vi trí thanh sáng (0-4)
+    char key;
+    int (*Select[4])(order**, shipper**) = {Order_Management, Shipper_Management, Smart_Coordination, Statistics_and_Reports};
+
+    while (1) {
+        system("cls");
+        Option(pointer);
+        printf("\n(Use UP/DOWN arrows and press ENTER to select)\n");
+
+        key = getch();//doi nhan phim
+
+        if (key == -32) { // Phím mui tên là phím mo rong (phim chuan bi nhap la phim dac biet)
+            key = getch();
+            if (key == 72) { // Mui tên lên
+                if (pointer > 0) pointer--;
+                else pointer = 4;
+            } else if (key == 80) { // Mui tên xuong
+                if (pointer < 4) pointer++;
+                else pointer = 0;
+            }
+        } else if (key == 13) { // Phím ENTER
+            if (pointer == 4) { // Lua chon thoát (0)
+                clear_file();
+                SaveOrder(headO);
+                freeOrder(headO);
+                freeShipper(headS);
+                printf("\n====SUCCESS FREE MEMORY====\n");
+                printf("\n====EXIT PROGRAM...GOOD BYE!====");
+                return;
+            } else {
+                // Thuc hien chuc nang tuong ung
+                system("cls");
+                int check = Select[pointer](headO, headS);
+                if (check == -1) {
+                    printf("\n===SYSTEM LOCKED!===\n");
+                    return;
+                }
+                printf("\nPress any key to return to Menu.\n");
+                getch();
+            }
+        }
+    }
 }
 int main(){
 	order *headOrder = NULL;
