@@ -45,8 +45,7 @@ viết bằng ngôn ngữ C, chạy trên Windows Console.
 
 ---
 
-## Cấu trúc thư mục
-
+```
 SmartDelivery/
 ├── Main.c        <- Điểm khởi động chương trình
 ├── Lib.h         <- Khai báo cấu trúc dữ liệu và prototype hàm
@@ -64,6 +63,7 @@ Các file dữ liệu tự động tạo khi chạy:
 ├── route report.txt           <- Báo cáo tuyến đường BFS
 ├── warehouse overview.txt     <- Tổng quan kho hàng
 └── Compile Report.txt         <- Báo cáo thống kê cuối ngày
+```
 
 ---
 
