@@ -1,4 +1,5 @@
 #include "Lib.h"
+// Ham tinh tong doanh thu tu cac don hang
 double totalShip(order *headO){
     double total = 0;
     if(headO == NULL) return 0.0;
@@ -7,6 +8,7 @@ double totalShip(order *headO){
     }
     return total + totalShip(headO->next);
 }
+// Ham xuat bao cao thong ke ra file
 void compileReport(order **headO, shipper **headS, char file[]){
     FILE *f = fopen(file,"w");
     if(f == NULL){
@@ -63,40 +65,39 @@ void compileReport(order **headO, shipper **headS, char file[]){
     fclose(f);
     printf("DATA HAS BEEN SUCCESSFULLY WRITTEN TO FILE %s!",file);
 }
+// Ham ve giao dien Menu Thong ke bao cao
 void Draw_StatisticsMenu(int pointer) {
     char *options[] = {
-        "Calculate the total daily revenue",
-        "Export the report (Compile_Report.txt)",
+        "Calculate total daily revenue",
+        "Export report (Compile_Report.txt)",
         "BACK TO MAIN MENU"
     };
-
-    printf("  ================================================\n");
-    printf("  |           4. STATISTICS AND REPORTS          |\n");
-    printf("  ================================================\n");
-
+    char buf[MENU_W + 2];
+    drawHLine(0);
+    drawTitleRow("[ 4 ]   STATISTICS AND REPORTS");
+    drawHLine(1);
+    drawEmptyRow();
     for (int i = 0; i < 3; i++) {
-        if (i == pointer) {
-            printf("  | ");
-            setColor(0, 15); // Highlight
-            printf("> [%d]. %-35s", (i == 2 ? 0 : i + 1), options[i]);
-            setColor(15, 0);
-            printf(" |\n");
-        } else {
-            printf("  |    [%d]. %-37s |\n", (i == 2 ? 0 : i + 1), options[i]);
-        }
+        if (i == pointer)
+            sprintf(buf, "  > [ %d ]. %s", (i == 2 ? 0 : i + 1), options[i]);
+        else
+            sprintf(buf, "    [ %d ]. %s", (i == 2 ? 0 : i + 1), options[i]);
+        drawItemRow(buf, i == pointer);
     }
-    printf("  ================================================\n");
+    drawEmptyRow();
+    drawHLine(1);
+    drawHintRow("    [^][v] Navigate   |   [ENTER] Select");
+    drawHLine(2);
 }
 //OPTION 4
+// Ham xu ly logic chinh cua Thong ke va Bao cao
 int Statistics_and_Reports(order **headO, shipper **headS) {
     int pointer = 0;
     char key;
 
-    while (1) {
-        system("cls");
-        printf("\n");
-        Draw_StatisticsMenu(pointer);
-        printf("\n  (Dung mui ten de di chuyen, ENTER de chon)");
+    system("cls");
+    while(1) {
+        goHome();Draw_StatisticsMenu(pointer);
 
         key = getch();
 
@@ -129,6 +130,7 @@ int Statistics_and_Reports(order **headO, shipper **headS) {
             printf("\n------------------------------------------\n");
             printf("Press any key to return to Statistics Menu.");
             getch();
+            system("cls"); // Xoa man hinh truoc khi ve lai menu
         }
     }
 }
