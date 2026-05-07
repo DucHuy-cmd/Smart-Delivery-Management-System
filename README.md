@@ -45,6 +45,7 @@ viết bằng ngôn ngữ C, chạy trên Windows Console.
 
 ---
 
+## Cấu trúc thư mục
 ```
 SmartDelivery/
 ├── Main.c        <- Điểm khởi động chương trình
