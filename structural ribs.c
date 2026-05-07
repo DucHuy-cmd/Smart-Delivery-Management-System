@@ -43,59 +43,70 @@ typedef struct SHIPPER{
 #define PHI_TAI_TRONG 5000;
 //Nhap vao so hang moi
 void addOrder(order **headO){
-	int number;
-	printf("How many order: ");
-	scanf("%d", &number);
-	for(int i = 0; i<number;i++){
-		printf("\n---Input order %d/%d---\n", i+1, number);
-		order *newNode = (order*)malloc(sizeof(order));
-		if(newNode==NULL) return;
-		printf("Enter code: ");
-		scanf("%s", newNode->code);
-		getchar();
-		printf("Enter name order: ");
-		fgets(newNode->orderName, sizeof(newNode->orderName), stdin);
-		newNode->orderName[strcspn(newNode->orderName, "\n")]=0;
-		printf("Enter customer name: ");
-		fgets(newNode->customerName, sizeof(newNode->customerName), stdin);
-		newNode->customerName[strcspn(newNode->customerName, "\n")]=0;
-		printf("Enter delivery coordinates: ");
-		scanf("%d%d", &newNode->x, &newNode->y);
-		printf("Enter cargo weight: ");
-		scanf("%lf", &newNode->weight);
-		newNode->isSaved = 0;
-		//0: giao bth, 1: giao hoa toc
-		do{
-			printf("Enter priority(0 || 1): ");
-			scanf("%d", &newNode->priority);
-		}while(newNode->priority != 0 && newNode->priority != 1);
-		printf("Enter shipping fee: ");
-		scanf("%lf", &newNode->fee);
-		//0: ton kho, 1: dang giao, 2: da giao
-		do{
-			printf("Enter status order: ");
-			scanf("%d", &newNode->status);
-		}while(newNode->status!=0 && newNode->status!=1 && newNode->status!=2);
-		printf("Enter time order: ");
-		scanf("%d%d%d", &newNode->date.day, &newNode->date.month, &newNode->date.year);
-		newNode->next = NULL;
-		order *tail = *headO;
-//truong hop da co don, khac NULL thi phai tim toi khi nao moc xich chua gan vao  
-		if(tail != NULL){
-			while(tail->next!=NULL){
-				tail = tail->next;
-			}
-		}
-		if(*headO==NULL){
-			*headO = newNode;
-			tail = newNode;
-		}
-		else{
-			tail->next = newNode;
-			tail = newNode;
-		}
-	}
-	printf("\n====SUCCESS ADD ORDER====\n");
+    int number;
+    drawHeader("ADD NEW ORDERS");
+    printf("\n  [?] How many orders to add: ");
+    if (scanf("%d", &number) != 1) return;
+
+    order *tail = *headO;
+    if(tail != NULL){
+        while(tail->next != NULL) tail = tail->next;
+    }
+
+    for(int i = 0; i < number; i++){
+        char title[64];
+        sprintf(title, "INPUT ORDER %d / %d", i+1, number);
+        drawHeader(title);
+
+        order *newNode = (order*)malloc(sizeof(order));
+        if(newNode == NULL) return;
+
+        printf("  \xAF Enter order code: ");
+        scanf("%s", newNode->code);
+        getchar();
+
+        printf("  \xAF Customer name: ");
+        fgets(newNode->customerName, sizeof(newNode->customerName), stdin);
+        newNode->customerName[strcspn(newNode->customerName, "\n")] = 0;
+
+        printf("  \xAF Product name: ");
+        fgets(newNode->orderName, sizeof(newNode->orderName), stdin);
+        newNode->orderName[strcspn(newNode->orderName, "\n")] = 0;
+
+        printf("  \xAF Delivery coordinates (x y): ");
+        scanf("%d%d", &newNode->x, &newNode->y);
+
+        printf("  \xAF Weight (kg): ");
+        scanf("%lf", &newNode->weight);
+
+        newNode->isSaved = 0;
+        do {
+            printf("  \xAF Priority (0: Normal, 1: Express): ");
+            scanf("%d", &newNode->priority);
+        } while(newNode->priority != 0 && newNode->priority != 1);
+
+        newNode->fee = PHI_SHIP + newNode->weight * PHI_TAI_TRONG;
+        if(newNode->priority == 1) newNode->fee *= 1.2;
+
+        do {
+            printf("  \xAF Status (0: Pending, 1: Shipping, 2: Delivered): ");
+            scanf("%d", &newNode->status);
+        } while(newNode->status < 0 || newNode->status > 2);
+
+        printf("  \xAF Order date (dd mm yyyy): ");
+        scanf("%d%d%d", &newNode->date.day, &newNode->date.month, &newNode->date.year);
+
+        newNode->next = NULL;
+        if(*headO == NULL){
+            *headO = newNode;
+            tail = newNode;
+        } else {
+            tail->next = newNode;
+            tail = newNode;
+        }
+    }
+    printf("\n  ------------------------------------------\n");
+    printf("  [!] SUCCESS: %d ORDERS ADDED.\n", number);
 }
 //sap xep nam, thang, ngay
 int compareDate(DATE d1, DATE d2){
@@ -130,8 +141,9 @@ void FindOrder(order **head){
 	order *temp = *head;
 	while(temp != NULL){
 		if(strcmp(temp->code, codeFind) == 0){
-			printf("The search unit exists\n");
-			return;
+			printf("%-30s || %-30s || %-10s || %-10s\n", "CustomerName", "OrderName", "Weight", "Date");
+            printf("%-30s || %-30s || %-10.2f || %02d/%02d/%04d\n", temp->customerName, temp->orderName, temp->weight, temp->date.day, temp->date.month, temp->date.year);
+            return;
 		}
 		temp = temp->next;
 	}
@@ -176,114 +188,112 @@ void SaveOrder(order **headO){
 	else printf("\n===No orders have been entered into the file\n");//Khong co don hang nao duoc nhap vao file
 }
 void UpdateOrder(order **head){
-	int number;
-	int cnt = 0;
-	do{
-		if(cnt==3){
-			printf("\nExit the program.....");
-			return;
-		}
-		printf("Enter the order number you want to edit(>=1): ");
-		scanf("%d", &number);
-		++cnt;
-	}while(number<1);
-	order *temp = *head;
-	//tim vi tri can sua
-	while(number != 1){
-		temp = temp->next;
-		number--;
-		if(temp == NULL){
-			printf("\n====There are no orders at this location====");
-			return;
-		}
-	}
-	while(1){
-		system("cls");
-		printf("\nEditing the order code [%s]", temp->code);
-		printf("\n1.Customer name"
-				"\n2.Product name"
-				"\n3.Delivery address(x, y)"
-				"\n4.Freight volume"
-				"\n5.Priority level(0: Normal, 1: Express)"
-				"\n6.Order status(0: Pending, 1: Shipping, 2: Delivered)"
-				"\n7.Delivery time"
-				"\n0.Exit");
-		int n;
-		printf("\nPlease enter the field you want to edit(1-7): ");
-		scanf("%d", &n);
-		if(n==0){
-			printf("Exiting update menu...\n");
-            break;
-		}
-		switch(n){
-			case 1:  
-				printf("Enter customer name new: ");
-				getchar(); 
-				fgets(temp->customerName, sizeof(temp->customerName), stdin); 
-				temp->customerName[strcspn(temp->customerName, "\n")]=0;
-				break;
-			case 2:
-				printf("Enter product name new: ");
-				getchar();
-				fgets(temp->orderName, sizeof(temp->orderName), stdin);
-				temp->orderName[strcspn(temp->orderName, "\n")]=0;
-				break;
-			case 3:
-				printf("Enter delivery address new: ");
-				scanf("%d %d", &temp->x, &temp->y);
-				break;
-			case 4:
-				printf("Enter freight volume new: ");
-				scanf("%lf", &temp->weight);
-				break;
-			case 5:
-				do{
-					printf("Enter priority: ");
-					scanf("%d", &temp->priority);
-				}while(temp->priority != 0 && temp->priority != 1);
-				break;
-			case 6:
-				do{
-					printf("Enter order status: ");
-					scanf("%d", &temp->status);
-				}while(temp->status != 0 && temp->status != 1 && temp->status != 2);
-				break;
-			case 7:
-				printf("Enter time delivery: ");
-				scanf("%d%d%d", &temp->date.day, &temp->date.month, &temp->date.year);
-				break;
-			default :
-				printf("Invalid selection!");
+    int number;
+    drawHeader("UPDATE ORDER INFO");
+    printf("\n  [?] Enter the order index to edit (1, 2, ...): ");
+    if (scanf("%d", &number) != 1 || number < 1) return;
+
+    order *temp = *head;
+    while(number > 1 && temp != NULL) {
+        temp = temp->next;
+        number--;
+    }
+
+    if(temp == NULL){
+        printf("\n  [x] Error: Order index not found!\n");
+        return;
+    }
+
+    while(1){
+        drawHeader("EDITING ORDER");
+        printf("\n  [!] ORDER CODE:  %s\n", temp->code);
+        printf("  ------------------------------------------\n");
+        printf("  1. Customer name\n"
+               "  2. Product name\n"
+               "  3. Delivery address (x, y)\n"
+               "  4. Freight volume\n"
+               "  5. Priority level (0-1)\n"
+               "  6. Order status (0-2)\n"
+               "  7. Delivery time\n"
+               "  0. EXIT UPDATE\n\n");
+
+        int n;
+        printf("  [?] Choose field (0-7): ");
+        scanf("%d", &n);
+        if(n == 0) break;
+
+        printf("\n");
+        switch(n){
+            case 1:
+                printf("  \xAF New customer name: ");
+                getchar();
+                fgets(temp->customerName, sizeof(temp->customerName), stdin);
+                temp->customerName[strcspn(temp->customerName, "\n")] = 0;
                 break;
-			}
-			printf("\n=> Update successful!");
-		}
+            case 2:
+                printf("  \xAF New product name: ");
+                getchar();
+                fgets(temp->orderName, sizeof(temp->orderName), stdin);
+                temp->orderName[strcspn(temp->orderName, "\n")] = 0;
+                break;
+            case 3:
+                printf("  \xAF New address (x y): ");
+                scanf("%d %d", &temp->x, &temp->y);
+                break;
+            case 4:
+                printf("  \xAF New weight: ");
+                scanf("%lf", &temp->weight);
+                break;
+            case 5:
+                do {
+                    printf("  \xAF New priority (0-1): ");
+                    scanf("%d", &temp->priority);
+                } while(temp->priority != 0 && temp->priority != 1);
+                break;
+            case 6:
+                do {
+                    printf("  \xAF New status (0-2): ");
+                    scanf("%d", &temp->status);
+                } while(temp->status < 0 || temp->status > 2);
+                break;
+            case 7:
+                printf("  \xAF New delivery time (dd mm yyyy): ");
+                scanf("%d%d%d", &temp->date.day, &temp->date.month, &temp->date.year);
+                break;
+            default:
+                printf("  Invalid selection!\n");
+                break;
+        }
+        printf("\n  => Update successful!\n");
+        printf("  Press any key to continue editing...");
+        getch();
+    }
 }
+// Ham ve giao dien Menu Quan ly don hang
 void Draw_OrderMenu(int pointer){
     char *options[] = {
         "Add a new order",
-        "Sort order date",
-        "Find order",
-        "Update order",
+        "Sort orders by date",
+        "Find an order",
+        "Update order info",
         "BACK TO MAIN MENU"
     };
-
-    printf("================================================\n");
-    printf("=               ORDER MANAGEMENT               =\n");
-    printf("================================================\n");
-
+    char buf[MENU_W + 2];
+    drawHLine(0);
+    drawTitleRow("[ 1 ]   ORDER MANAGEMENT");
+    drawHLine(1);
+    drawEmptyRow();
     for (int i = 0; i < 5; i++) {
-        if (i == pointer) {
-            printf("= ");
-            setColor(0, 15); // Chu den, nen trang
-            printf("> %-40s", options[i]);
-            setColor(15, 0); // Tra lai màu cu
-            printf(" =\n");
-        } else {
-            printf("=   %-42s =\n", options[i]);
-        }
+        if (i == pointer)
+            sprintf(buf, "  > [ %d ]. %s", (i == 4 ? 0 : i + 1), options[i]);
+        else
+            sprintf(buf, "    [ %d ]. %s", (i == 4 ? 0 : i + 1), options[i]);
+        drawItemRow(buf, i == pointer);
     }
-    printf("================================================\n");
+    drawEmptyRow();
+    drawHLine(1);
+    drawHintRow("    [^][v] Navigate   |   [ENTER] Select");
+    drawHLine(2);
 }
 //OPTION 1
 int Order_Management(order **headO, shipper **headS) {
@@ -471,23 +481,29 @@ void Option(int pointer){
         "STATISTICS AND REPORTS",
         "FREE MEMORY AND EXIT PROGRAM"
     };
-
-    printf("================================================\n");
-    printf("= %-44s =\n", "    SMART DELIVERY AND MANAGEMENT SYSTEM");
-    printf("================================================\n");
-
-    for (int i = 0; i < 5; i++) {
-        if (i == pointer) {
-            printf("= ");
-            setColor(0, 15); // Chu den, nen trang
-            printf("> [%d]. %-36s", (i == 4 ? 0 : i + 1), menuItems[i]);
-            setColor(15, 0); // Tra lai màu trang, nen den
-            printf(" =\n");
-        } else {
-            printf("=   [%d]. %-37s =\n", (i == 4 ? 0 : i + 1), menuItems[i]);
-        }
+    char buf[MENU_W + 2];
+    int i;
+    drawHLine(0);
+    drawEmptyRow();
+    drawTitleRow("\xDB\xDB\xDB  SMART DELIVERY MANAGEMENT  \xDB\xDB\xDB");
+    drawTitleRow("Logistics & Smart Coordination System");
+    drawTitleRow("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
+    drawEmptyRow();
+    drawHLine(1);
+    drawTitleRow("-=   M A I N   M E N U   =-");
+    drawHLine(1);
+    drawEmptyRow();
+    for (i = 0; i < 5; i++) {
+        if (i == pointer)
+            sprintf(buf, "  > [ %d ]. %s", (i == 4 ? 0 : i + 1), menuItems[i]);
+        else
+            sprintf(buf, "    [ %d ]. %s", (i == 4 ? 0 : i + 1), menuItems[i]);
+        drawItemRow(buf, i == pointer);
     }
-    printf("================================================\n");
+    drawEmptyRow();
+    drawHLine(1);
+    drawHintRow("    [^][v] Navigate   |   [ENTER] Select");
+    drawHLine(2);
 }
 //giai phong bo nho order
 void freeOrder(order **headO){
@@ -513,28 +529,28 @@ void SelectOption(order **headO, shipper **headS) {
     loadFileOrder(headO);
     hideCursor(); // an con tro chuot
 
-    int pointer = 0; // Vi trí thanh sáng (0-4)
+    int pointer = 0; // Vi trï¿½ thanh sï¿½ng (0-4)
     char key;
     int (*Select[4])(order**, shipper**) = {Order_Management, Shipper_Management, Smart_Coordination, Statistics_and_Reports};
 
-    while (1) {
-        system("cls");
+    system("cls");
+    while(1) {
+        goHome();
         Option(pointer);
-        printf("\n(Use UP/DOWN arrows and press ENTER to select)\n");
 
         key = getch();//doi nhan phim
 
-        if (key == -32) { // Phím mui tên là phím mo rong (phim chuan bi nhap la phim dac biet)
+        if (key == -32) { // Phï¿½m mui tï¿½n lï¿½ phï¿½m mo rong (phim chuan bi nhap la phim dac biet)
             key = getch();
-            if (key == 72) { // Mui tên lên
+            if (key == 72) { // Mui tï¿½n lï¿½n
                 if (pointer > 0) pointer--;
                 else pointer = 4;
-            } else if (key == 80) { // Mui tên xuong
+            } else if (key == 80) { // Mui tï¿½n xuong
                 if (pointer < 4) pointer++;
                 else pointer = 0;
             }
-        } else if (key == 13) { // Phím ENTER
-            if (pointer == 4) { // Lua chon thoát (0)
+        } else if (key == 13) { // Phï¿½m ENTER
+            if (pointer == 4) { // Lua chon thoï¿½t (0)
                 clear_file();
                 SaveOrder(headO);
                 freeOrder(headO);
@@ -550,8 +566,7 @@ void SelectOption(order **headO, shipper **headS) {
                     printf("\n===SYSTEM LOCKED!===\n");
                     return;
                 }
-                printf("\nPress any key to return to Menu.\n");
-                getch();
+                system("cls"); // Xoa man hinh sau khi thuc hien xong chuc nang
             }
         }
     }
