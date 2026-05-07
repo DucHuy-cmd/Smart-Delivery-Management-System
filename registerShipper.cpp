@@ -1,85 +1,101 @@
 //OPTION 2
-int Shipper_Management(order**headO,shipper **headS);
-void registerShipper (shipper **headS);
-void deleteShipper (shipper **headS);
-void informationShipper (shipper **headS);
-void loadFileShipper(shipper **headS);
+// Ham tao moi mot Shipper
+shipper *CreateShipper() {
+    shipper *newShipper = (shipper*)malloc(sizeof(shipper));
+    if(newShipper == NULL) return NULL;
 
-static int N0S=1;
-//Mỗi 1 shipper là 1 Node chưa dc liên kết
-//Mỗi 1 Node này cần dc điền Thông tin
-shipper *CreateShipper () {
-    shipper *newShipper=(shipper*)malloc(sizeof(shipper));
-    if(newShipper == NULL)
-        return NULL;
+    printf("  \xAF Full Name: ");
+    fgets(newShipper->Name, sizeof(newShipper->Name), stdin);
+    newShipper->Name[strcspn(newShipper->Name, "\n")] = '\0';
 
-    printf ("Enter Your Name: ");
-    fgets (newShipper->Name,sizeof(newShipper->Name),stdin);
-    newShipper->Name[strcspn(newShipper->Name, "\n")]='\0';
-
-    printf ("Enter Your CCCD: ");
+    printf("  \xAF Citizen ID: ");
     scanf("%lld", &newShipper->CCCD);
-    while (getchar() != '\n');
+    while(getchar() != '\n');
 
-    //trọng lượng tối đa cảu shipper
-    printf ("Enter Your Order Weight: ");
-    scanf ("%lf",&newShipper->weight);
-    while (getchar() != '\n');
+    printf("  \xAF Max Transport Weight (kg): ");
+    scanf("%lf", &newShipper->weight);
+    while(getchar() != '\n');
 
-    //Phan loai shipper 0: Hỏa tốc, 1: bình thường
-    printf ("Enter Your Shipper Type: ");
-    scanf ("%d",&newShipper->prioritySP);
-    while (getchar() != '\n');
-    
-    while (newShipper->prioritySP!=0 && newShipper->prioritySP!=1) {
-        printf ("Invalid Type");
-        scanf ("%d",&newShipper->prioritySP);
-        while (getchar() != '\n');
-    }
+    int type;
+    do {
+        printf("  \xAF Shipper Type (0: Express, 1: Normal): ");
+        scanf("%d", &type);
+        while(getchar() != '\n');
+    } while(type != 0 && type != 1);
+    newShipper->prioritySP = type;
 
-    //Nhận Mã shipper
-    sprintf (newShipper->code,"SP%02d",N0S++);
-    newShipper->numberOrder=0;
-    newShipper->status=0;
-    newShipper->x=0;
-    newShipper->y=0;
-    printf ("\n");
-
-    newShipper->next=NULL;
+    sprintf(newShipper->code, "SP%02d", N0S++);
+    newShipper->numberOrder = 0;
+    newShipper->status = 0;
+    newShipper->x = 0;
+    newShipper->y = 0;
+    newShipper->next = NULL;
     return newShipper;
 }
 
+// Ham ghi thong tin Shipper vao file
+// Tong chieu rong khung = 108 ky tu (inner = 106)
+// Border : +=========...=========+  (108 chars)
+// Sep    : +---------...---------+  (108 chars)
+// Row    : | col... |             (108 chars)
 void informationShipper(shipper **headS) {
     shipper *p = *headS;
-    
-    // File data để load/save
-    FILE *data = fopen("Shipper_data.txt", "w");
-    // File đẹp để xem
-    FILE *display = fopen("Shipper_information.txt", "w");
-    
-    fprintf(display, "%-30s | %-20s | %-10s | %-10s | %-8s | %-6s | %-6s | %-16s | %-6s\n",
-            "Name", "CCCD", "CODE", "Priority", "Weight", "x", "y", "Number of Orders", "Status");
-    fprintf(display, "%-30s-+-%-20s-+-%-10s-+-%-10s-+-%-8s-+-%-6s-+-%-6s-+-%-16s-+-%-6s\n",
-            "------------------------------", "--------------------", "----------",
-            "----------", "--------", "------", "------", "----------------", "------");
 
-    while (p != NULL) {
-        // Ghi data
+    FILE *data    = fopen("Shipper_data.txt", "w");
+    FILE *display = fopen("Shipper_information.txt", "w");
+
+    #define ITOP "+==========================================================================================================+\n"
+    #define ISEP "+----------------------------------------------------------------------------------------------------------+\n"
+
+    /* Header box */
+    fprintf(display, ITOP);
+    fprintf(display, "|%41s%-24s%41s|\n", "", "SHIPPER INFORMATION LIST", "");
+    fprintf(display, ITOP);
+
+    /* Column headers */
+    fprintf(display, "| %-24s | %-13s | %-7s | %-7s | %-7s | %-4s | %-4s | %-7s | %-7s |\n",
+            "NAME", "CCCD", "CODE", "TYPE", "WEIGHT", "X", "Y", "ORDERS", "STATUS");
+    fprintf(display, ISEP);
+
+    while(p != NULL) {
+        /* Data file (raw, dung de doc lai bang sscanf) */
         fprintf(data, "%s|%lld|%s|%d|%lf|%d|%d|%d|%d\n",
                 p->Name, p->CCCD, p->code, p->prioritySP,
                 p->weight, p->x, p->y, p->numberOrder, p->status);
-        
-        // Ghi display đẹp
-        fprintf(display, "%-30s | %-20lld | %-10s | %-10d | %-8.2lf | %-6d | %-6d | %-16d | %-6d\n",
+
+        /* Display file */
+        fprintf(display, "| %-24s | %-13lld | %-7s | %-7d | %-7.2lf | %-4d | %-4d | %-7d | %-7d |\n",
                 p->Name, p->CCCD, p->code, p->prioritySP,
                 p->weight, p->x, p->y, p->numberOrder, p->status);
         p = p->next;
     }
+
+    fprintf(display, ITOP);
+
+    #undef ITOP
+    #undef ISEP
+
     fclose(data);
     fclose(display);
 }
-
-void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
+void trimRight(char *str){
+	int start=0;
+	while (str[start]==' ')
+		start++; // xoa khang trang dau
+    
+    int len = strlen(str); //strlen dung de dem do dai chuoi
+    while(len > start && (str[len-1] == ' ' || str[len-1] == '\n' || str[len-1] == '\r')){ //xoa khoang trang + \n + \r cuoi
+        len--;// lui lai ktr tiep
+    }
+    
+    if (len > start) {
+        memmove(str, str + start, len - start);// don chuoi ve dau
+        str[len - start] = '\0'; // ket thuc chuoi
+    } else {
+        str[0] = '\0'; // chuoi rong
+    }
+}
+void loadFileShipper(shipper **headS){
 	FILE *f = fopen("Shipper_data.txt", "r");
 	if(f==NULL) {
         return;
@@ -109,6 +125,9 @@ void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
             free(newNode);
             continue;// bo qua vong lap nhay sang tiep theo khi sscanf !=9
         }    
+        trimRight(newNode->Name);
+        trimRight(newNode->code);
+
 		max++;// phai tang neu ko se co thag trung ma shipper
         if (*headS==NULL){
             *headS=newNode;
@@ -123,134 +142,137 @@ void loadFileShipper(shipper **headS){ // ghi vao main tren selectoption
 	fclose(f);
 	printf("======DONE LOAD FILE SHIPPER=====\n");
 }
-void registerShipper (shipper **headS) {
-    shipper *Tail = *headS;
-    while (Tail && Tail->next != NULL) {
-        Tail = Tail->next;
-    }
-    //nhập số lượng shipper chuẩn bị cung cấp thông  tin (có thể nhiều hoặc ít)
-    //để linh hoạt trong việc cung cấp thông tin
-    //NoS = Number of Shhipper
-    printf ("Enter Number of Shipper: ");
+// Ham dang ky them cac Shipper moi
+void registerShipper(shipper **headS) {
     int NoS;
-    scanf ("%d",&NoS);
-    while (getchar() != '\n');
+    drawHeader("REGISTER NEW SHIPPER");
+    printf("\n  [?] How many shippers to register: ");
+    scanf("%d", &NoS);
+    while(getchar() != '\n');
 
-    for (int i=0; i<NoS; i++) {
-        //Nhập thông tin của n shipper đã đăng ký
-        shipper *newShipPtr=CreateShipper();
-        if (*headS==NULL) {
-            *headS=newShipPtr;
-            Tail=newShipPtr;
-        }
-        else {
-            Tail->next=newShipPtr;
+    shipper *Tail = *headS;
+    while(Tail && Tail->next != NULL) Tail = Tail->next;
+
+    for(int i = 0; i < NoS; i++) {
+        char title[64];
+        sprintf(title, "SHIPPER REGISTRATION %d / %d", i+1, NoS);
+        drawHeader(title);
+        shipper *newShipPtr = CreateShipper();
+        if(*headS == NULL) {
+            *headS = newShipPtr;
+            Tail = newShipPtr;
+        } else {
+            Tail->next = newShipPtr;
             Tail = newShipPtr;
         }
     }
-    informationShipper (headS);
-    printf ("\n====SUCCESS REGISTED====\n");
+    informationShipper(headS);
+    printf("\n  ------------------------------------------\n");
+    printf("  [!] SUCCESS: %d SHIPPERS REGISTERED.\n", NoS);
 }
 
-void deleteShipper (shipper **headS) {
-    if (*headS ==NULL) {
-        printf ("List is empty");
+// Ham xoa mot Shipper theo ma ID
+void deleteShipper(shipper **headS) {
+    if(*headS == NULL) {
+        printf("List is empty");
         return;
     }
-    shipper *p=*headS;
+    shipper *p = *headS;
     char deLShip[5];
-    printf ("Enter The Shipper ID You Want To Delete: ");
-    while (getchar() != '\n');
-    fgets (deLShip,sizeof(deLShip),stdin);
-    deLShip[strcspn(deLShip,"\n")] = '\0';
-    if (strcmp(p->code, deLShip)==0) {
-        *headS=(*headS)->next;
+    printf("Enter The Shipper ID You Want To Delete: ");
+    while(getchar() != '\n');
+    fgets(deLShip, sizeof(deLShip), stdin);
+    deLShip[strcspn(deLShip, "\n")] = '\0';
+
+    if(strcmp(p->code, deLShip) == 0) {
+        *headS = (*headS)->next;
         free(p);
-        printf ("Delete Successfully!\n");
-        informationShipper (headS);
+        printf("Delete Successfully!\n");
+        informationShipper(headS);
         return;
     }
-    while (p->next!=NULL) {
-        shipper *p1=p->next;
-        if (p->next!=NULL && strcmp(p->next->code,deLShip)==0) {
-            p->next=p1->next;
+    while(p->next != NULL) {
+        shipper *p1 = p->next;
+        if(p->next != NULL && strcmp(p->next->code, deLShip) == 0) {
+            p->next = p1->next;
             free(p1);
-            printf ("Delete Successfully!\n");
-            informationShipper (headS);
+            printf("Delete Successfully!\n");
+            informationShipper(headS);
             return;
         }
-        p=p->next;
+        p = p->next;
     }
-    printf ("Shipper Not Found!!\n");
-    informationShipper (headS);
+    printf("Shipper Not Found!!\n");
+    informationShipper(headS);
 }
 
+// Ham ve giao dien Menu Quan ly Shipper
 void Draw_ShipperMenu(int pointer) {
     char *options[] = {
-        "Register as a new Shipper",
-        "Delete Shipper",
-        "List Shipper (Open Notepad)",
+        "Register a new Shipper",
+        "Delete a Shipper",
+        "View Shipper list (Notepad)",
         "BACK TO MAIN MENU"
     };
-
-    printf("================================================\n");
-    printf("=              SHIPPER MANAGEMENT              =\n");
-    printf("================================================\n");
-
-    for (int i = 0; i < 4; i++) {
-        if (i == pointer) {
-            printf("= ");
-            setColor(0, 15); // Highlight: Chu den, nen trang
-            printf("> %-40s", options[i]);
-            setColor(15, 0); 
-            printf(" =\n");
-        } else {
-            printf("=   %-42s =\n", options[i]);
-        }
+    char buf[MENU_W + 2];
+    drawHLine(0);
+    drawTitleRow("[ 2 ]   SHIPPER MANAGEMENT");
+    drawHLine(1);
+    drawEmptyRow();
+    for(int i = 0; i < 4; i++) {
+        if(i == pointer)
+            sprintf(buf, "  > [ %d ]. %s", (i == 3 ? 0 : i + 1), options[i]);
+        else
+            sprintf(buf, "    [ %d ]. %s", (i == 3 ? 0 : i + 1), options[i]);
+        drawItemRow(buf, i == pointer);
     }
-    printf("================================================\n");
+    drawEmptyRow();
+    drawHLine(1);
+    drawHintRow("    [^][v] Navigate   |   [ENTER] Select");
+    drawHLine(2);
 }
+
+// Ham xu ly logic chinh cua Quan ly Shipper
 int Shipper_Management(order **headO, shipper **headS) {
     int pointer = 0;
     char key;
 
-    while (1) {
-        system("cls");
+    system("cls");
+    while(1) {
+        goHome();
         Draw_ShipperMenu(pointer);
-        
+
         key = getch();
 
-        if (key == -32) { // Bat phím mui tên
+        if(key == -32) {
             key = getch();
-            if (key == 72) { // Lên
-                if (pointer > 0) pointer--;
-                else pointer = 3; 
-            } else if (key == 80) { // Xuong
-                if (pointer < 3) pointer++;
-                else pointer = 0; 
+            if(key == 72) {
+                if(pointer > 0) pointer--;
+                else pointer = 3;
+            } else if(key == 80) {
+                if(pointer < 3) pointer++;
+                else pointer = 0;
             }
-        } 
-        else if (key == 13) { // Phím Enter
+        }
+        else if(key == 13) {
             system("cls");
-            if (pointer == 3) return 0;
+            if(pointer == 3) return 0;
 
-            switch (pointer) {
-                case 0:
-                    registerShipper(headS);
-                    break;
-                case 1:
-                    deleteShipper(headS);
-                    break;
+            switch(pointer) {
+                case 0: registerShipper(headS); break;
+                case 1: deleteShipper(headS);   break;
                 case 2:
                     printf("Opening Shipper_information.txt in Notepad...\n");
                     system("notepad Shipper_information.txt");
                     break;
             }
-            //Cho xem ket qua, ngoai tru truong hop 2 vi 2 la mo file
-            if (pointer != 2) {
+            if(pointer != 2) {
                 printf("\n------------------------------------------\n");
                 printf("Action completed. Press any key to return.");
                 getch();
+                system("cls"); // Xoa man hinh truoc khi ve lai menu
+            } else {
+                system("cls"); // Xoa man hinh cho truong hop mo notepad
             }
         }
     }
