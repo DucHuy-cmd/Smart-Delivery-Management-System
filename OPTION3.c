@@ -226,6 +226,7 @@ static order* findNearest(order *headO, char baseMap[][MAP_SIZE],
 // ================================================================
 //  CHUC NANG 1: DIEU PHOI DON HANG TU DONG
 // ================================================================
+// Ham phan cong don hang cho cac Shipper phu hop
 void dispatchOrders(order **headO, shipper **headS) {
     system("cls");
     if (*headO == NULL || *headS == NULL) {
@@ -318,10 +319,11 @@ void dispatchOrders(order **headO, shipper **headS) {
 // ================================================================
 //  CHUC NANG 2: ANIMATION SHIPPER GIAO HANG
 //  * Ban do 30x30 hinh vuong (2 ky tu/o)
-//  * Khong nháy: dung gotoXY ghi de len man hinh
+//  * Khong nh�y: dung gotoXY ghi de len man hinh
 //  * Don dau: xuat phat tu kho W(0,0)
 //  * Don tiep: tiep tuc tu vi tri vua giao, tim don GAN NHAT (BFS)
 // ================================================================
+// Ham mo phong qua trinh giao hang bang hoat anh
 void animateDelivery(order **headO, shipper **headS) {
     system("cls");
     enableAnsiControl();
@@ -364,8 +366,8 @@ void animateDelivery(order **headO, shipper **headS) {
     const int statusRow = mapContentStartRow + MAP_SIZE + 2;
     const int doneMsgRow = statusRow + 1;
 
-    while (1) {
-        /* Tim don Shipping gan nhat tu vi tri hien tai */
+    while(1) {
+        goHome();/* Tim don Shipping gan nhat tu vi tri hien tai */
         order *o = findNearest(*headO, baseMap, curR, curC);
         if (o == NULL) break;  /* Het don */
 
@@ -522,6 +524,7 @@ void animateDelivery(order **headO, shipper **headS) {
 //  So do mat bang: 9 khu, moi khu = khoi 3x3 ky hieu ###
 //  Sap xep 3 hang x 3 cot, giua cac khu cach 1 o trong
 // ================================================================
+// Ham hien thi tong quan kho hang va thong tin don hang
 void warehouseOverview(order **headO, shipper **headS) {
     system("cls");
 
@@ -622,8 +625,8 @@ void warehouseOverview(order **headO, shipper **headS) {
     FILE *f = fopen("warehouse_overview.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
-        fprintf(f, "  |                      WAREHOUSE OVERVIEW REPORT                             |\n");
-        fprintf(f, "  |            Date: %-12s         Time: %-10s                                 |\n", dateStr, timeStr);
+        fprintf(f, "|                      WAREHOUSE OVERVIEW REPORT                               |\n");
+        fprintf(f, "|            Date: %-12s         Time: %-10s                       |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  [ORDERS]    Total: %-3d |  Pending(P): %-3d  |  Shipping(G): %-3d  |  Delivered(D): %-3d\n",
                 totalO, cntP, cntG, cntD);
@@ -679,6 +682,7 @@ void warehouseOverview(order **headO, shipper **headS) {
 // ================================================================
 //  CHUC NANG 4: GOI Y DUONG DI TOI UU (ban do BFS, map vuong)
 // ================================================================
+// Ham goi y tuyen duong giao hang toi uu cho Shipper
 void suggestOptimalRoute(order **headO, shipper **headS) {
     system("cls");
 
@@ -696,7 +700,7 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
     printf("\n");
     printf("  ============================================================\n");
     printf("  |              OPTIMAL ROUTE SUGGESTION - BFS              |\n");
-    printf("  |           Date: %-12s           Time: %-10s              |\n", dateStr, timeStr);
+    printf("  |           Date: %-12s           Time: %-10s    |\n", dateStr, timeStr);
     printf("  ============================================================\n");
     printf("  Start warehouse: W(%d,%d) | Algorithm: BFS\n\n", WH_ROW, WH_COL);
 
@@ -752,7 +756,7 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
     if (f) {
         fprintf(f, "================================================================================\n");
         fprintf(f, "|                     OPTIMAL ROUTE SUGGESTION REPORT                          |\n");
-        fprintf(f, "|              Date: %-12s         Time: %-10s                                 |\n", dateStr, timeStr);
+        fprintf(f, "|                 Date: %-12s         Time: %-10s                   |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  Start warehouse: W(%d, %d)  |  Algorithm: BFS (shortest path)\n\n",
                 WH_ROW, WH_COL);
@@ -793,50 +797,73 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
     printf("\n  Press any key to return...");
     _getch();
 }
+// Ham ve giao dien Menu Dieu phoi thong minh
+void Draw_CoordinationMenu(int pointer) {
+    char *options[] = {
+        "Automatic order dispatch",
+        "Optimal route suggestion (BFS)",
+        "Warehouse overview (layout map)",
+        "Delivery simulation (animation)",
+        "BACK TO MAIN MENU"
+    };
+    char buf[MENU_W + 2];
+    drawHLine(0);
+    drawTitleRow("[ 3 ]   SMART COORDINATION");
+    drawHLine(1);
+    drawEmptyRow();
+    for (int i = 0; i < 5; i++) {
+        if (i == pointer)
+            sprintf(buf, "  > [ %d ]. %s", (i == 4 ? 0 : i + 1), options[i]);
+        else
+            sprintf(buf, "    [ %d ]. %s", (i == 4 ? 0 : i + 1), options[i]);
+        drawItemRow(buf, i == pointer);
+    }
+    drawEmptyRow();
+    drawHLine(1);
+    drawHintRow("    [^][v] Navigate   |   [ENTER] Select");
+    drawHLine(2);
+}
 
 // ================================================================
 //  OPTION 3 - MENU CHINH
 // ================================================================
+// Ham xu ly logic chinh cua Dieu phoi thong minh
 int Smart_Coordination(order **headO, shipper **headS) {
-    int countWrong = 0;
-    int choice;
+    int pointer = 0;
+    char key;
 
-    while (1) {
-        system("cls");
-        printf("\n");
-        printf("  ================================================\n");
-        printf("  |       3. SMART COORDINATION MENU             |\n");
-        printf("  ================================================\n");
-        printf("  | [1]. Automatic order dispatch                |\n");
-        printf("  | [2]. Delivery simulation (animation)         |\n");
-        printf("  | [3]. Warehouse overview (layout map)         |\n");
-        printf("  | [4]. Optimal route suggestion (BFS)          |\n");
-        printf("  | [5]. Back to main menu                       |\n");
-        printf("  ================================================\n\n");
+    system("cls");
+    while(1) {
+        goHome();Draw_CoordinationMenu(pointer);
+        key = getch();
 
-        if (countWrong >= 3) {
-            printf("  [!] Wrong input 3 times. Feature locked!\n");
-            printf("  Press any key to return...");
-            _getch();
-            return -1;
-        }
+        if (key == -32) { // Bat phim mui ten
+            key = getch();
+            if (key == 72) { // Len
+                if (pointer > 0) pointer--;
+                else pointer = 4;
+            } else if (key == 80) { // Xuong
+                if (pointer < 4) pointer++;
+                else pointer = 0;
+            }
+        } 
+        else if (key == 13) { // Phim ENTER
+            system("cls");
+            if (pointer == 4) return 0; // Quay lai Menu chinh
 
-        printf("  Enter your choice (1-5): ");
-        fflush(stdin);
-        scanf("%d", &choice);
+            // Goi cac ham xu ly thuat toan cua ong
+            switch (pointer) {
+                case 0: dispatchOrders(headO, headS); break;
+                case 1: suggestOptimalRoute(headO, headS); break;
+                case 2: warehouseOverview(headO, headS); break;
+                case 3: animateDelivery(headO, headS); break;
+            }
 
-        switch (choice) {
-            case 1: dispatchOrders(headO, headS);      countWrong = 0; break;
-            case 2: animateDelivery(headO, headS);     countWrong = 0; break;
-            case 3: warehouseOverview(headO, headS);   countWrong = 0; break;
-            case 4: suggestOptimalRoute(headO, headS); countWrong = 0; break;
-            case 5: return 0;
-            default:
-                printf("\n  [!] Please enter a number from 1 to 5.\n");
-                countWrong++;
-                Sleep(800);
-                break;
+            printf("\n\n  ------------------------------------------\n");
+            printf("  Task finished. Press any key to return...");
+            getch();
+            system("cls"); // Xoa man hinh truoc khi ve lai menu
         }
     }
-    return 0;
 }
+
