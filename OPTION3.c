@@ -60,12 +60,6 @@ static void gotoXY(int row, int col) {
     fflush(stdout);
 }
 
-static void hideCursor(void) {
-    enableAnsiControl();
-    printf("\x1b[?25l");
-    fflush(stdout);
-}
-
 static void showCursor(void) {
     enableAnsiControl();
     printf("\x1b[?25h");
@@ -157,34 +151,48 @@ static int bfsFind(char baseMap[][MAP_SIZE],
 
 // ================================================================
 //  IN BAN DO HINH VUONG (2 ky tu moi o)
-//  30 o * 2 = 60 ky tu rong  |  30 hang cao
-//  -> Xap xi hinh vuong trong console (char cao ~ 2x rong)
 // ================================================================
 static void printMapSquare(char map[][MAP_SIZE]) {
-    /* Vien tren */
     printf("  +");
     for (int c = 0; c < MAP_SIZE; c++) printf("--");
     printf("+\n");
-    /* Noi dung */
     for (int r = 0; r < MAP_SIZE; r++) {
         printf("  |");
-        for (int c = 0; c < MAP_SIZE; c++)
-            printf("%c ", map[r][c]);
+        for (int c = 0; c < MAP_SIZE; c++) {
+            char ch = map[r][c];
+            if      (ch == SYM_WAREHOUSE) setColor(14, 0);   // vang: kho
+            else if (ch == SYM_SHIPPER)   setColor(11, 0);   // cyan: shipper
+            else if (ch == SYM_PATH)      setColor(9,  0);   // xanh lam: duong di
+            else if (ch == SYM_PENDING)   setColor(12, 0);   // do: cho xu ly
+            else if (ch == SYM_SHIPPING)  setColor(14, 0);   // vang: dang giao
+            else if (ch == SYM_DELIVERED) setColor(10, 0);   // xanh la: da giao
+            else if (ch == SYM_WALL)      setColor(8,  0);   // xam: tuong
+            else                          setColor(15, 0);   // trang: trong
+            printf("%c ", ch);
+            setColor(15, 0);
+        }
         printf("|\n");
     }
-    /* Vien duoi */
     printf("  +");
     for (int c = 0; c < MAP_SIZE; c++) printf("--");
     printf("+\n");
 }
-/* Tong so dong printMapSquare xuat ra = MAP_SIZE + 2 = 32 */
 
-/* Legend 1 dong (khong co dong trong o truoc, de caller tu quan ly) */
 static void printLegendBFS(void) {
-    printf("  W=Warehouse  S=Shipper  ==Path  G=Shipping  D=Delivered  X=Wall  .=Empty\n");
+    setColor(14, 0); printf("  W");
+    setColor(15, 0); printf("=Warehouse  ");
+    setColor(11, 0); printf("S");
+    setColor(15, 0); printf("=Shipper  ");
+    setColor(9,  0); printf("=");
+    setColor(15, 0); printf("=Path  ");
+    setColor(14, 0); printf("G");
+    setColor(15, 0); printf("=Shipping  ");
+    setColor(10, 0); printf("D");
+    setColor(15, 0); printf("=Delivered  ");
+    setColor(8,  0); printf("X");
+    setColor(15, 0); printf("=Wall  .=Empty\n");
 }
 
-/* Header animation: luon in dung 4 dong de gotoXY ghi de sach */
 static void printAnimHeader(int step, int total,
                             int curR, int curC, int destR, int destC,
                             const char *code, const char *cust,
@@ -195,11 +203,6 @@ static void printAnimHeader(int step, int total,
            step, total, curR, curC, destR, destC);
     printf("  +----------------------------------------------------------------+\n");
 }
-/* Header = 4 dong
-   Blank  = 1 dong
-   Map    = 32 dong
-   Legend = 1 dong
-   TONG   = 38 dong (rows 0..37) moi frame */
 
 // ================================================================
 //  TIM DON HANG GAN NHAT (BFS) TU VI TRI HIEN TAI
@@ -226,12 +229,14 @@ static order* findNearest(order *headO, char baseMap[][MAP_SIZE],
 // ================================================================
 //  CHUC NANG 1: DIEU PHOI DON HANG TU DONG
 // ================================================================
-// Ham phan cong don hang cho cac Shipper phu hop
 void dispatchOrders(order **headO, shipper **headS) {
     system("cls");
     if (*headO == NULL || *headS == NULL) {
+        setColor(12, 0);
         printf("\n  [!] Missing orders or shippers!\n");
+        setColor(8, 0);
         printf("\n  Press any key to return...");
+        setColor(15, 0);
         _getch(); return;
     }
 
@@ -241,11 +246,13 @@ void dispatchOrders(order **headO, shipper **headS) {
     strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
     strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
 
+    setColor(11, 0);
     printf("\n");
     printf("  ============================================================\n");
     printf("  |           AUTOMATIC ORDER DISPATCH SYSTEM                 |\n");
-    printf("  |            Date: %-12s           Time: %-10s              |\n", dateStr, timeStr);
+    printf("  |            Date: %-12s           Time: %-10s  |\n", dateStr, timeStr);
     printf("  ============================================================\n\n");
+    setColor(15, 0);
 
     int totalDispatched = 0;
     double totalWeight  = 0;
@@ -257,37 +264,49 @@ void dispatchOrders(order **headO, shipper **headS) {
         for (order *o = *headO; o != NULL; o = o->next) {
             if (o->status == 0 && o->priority == s->prioritySP
                 && (curLoad + o->weight) <= s->weight) {
-                if (hasOrder == 0)
+                if (hasOrder == 0) {
+                    setColor(11, 0);
                     printf("  >> Shipper [%s] - %s (Max load: %.1f kg)\n",
                            s->code, s->Name, s->weight);
+                    setColor(15, 0);
+                }
                 o->status = 1;
                 curLoad  += o->weight;
                 hasOrder++; totalDispatched++;
                 totalWeight += o->weight;
+                setColor(10, 0);
                 printf("     [+] Order %-5s | %-18s | %.1f kg -> ASSIGNED\n",
                        o->code, o->customerName, o->weight);
+                setColor(15, 0);
             }
         }
         if (hasOrder > 0) {
             s->status = 1;
+            setColor(14, 0);
             printf("         Load: %.1f/%.1f kg\n\n", curLoad, s->weight);
+            setColor(15, 0);
         }
     }
 
     if (totalDispatched == 0) {
+        setColor(14, 0);
         printf("  [!] No orders were assigned.\n");
         printf("      (Check priority, capacity, and current statuses)\n");
+        setColor(15, 0);
     } else {
+        setColor(11, 0);
         printf("  ------------------------------------------------------------\n");
+        setColor(10, 0);
         printf("  Total assigned: %d orders  |  Total weight: %.1f kg\n",
                totalDispatched, totalWeight);
+        setColor(15, 0);
     }
 
     FILE *f = fopen("dispatch_report.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
         fprintf(f, "|                       ORDER DISPATCH REPORT                                  |\n");
-        fprintf(f, "|              Date: %-12s         Time: %-10s                                 |\n", dateStr, timeStr);
+        fprintf(f, "|                  Date: %-12s         Time: %-10s                 |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  %-6s | %-20s | %-20s | %-8s | %-12s | %-10s |\n",
                 "ORDER", "ITEM NAME", "CUSTOMER", "WEIGHT", "STATUS", "FEE (VND)");
@@ -298,7 +317,7 @@ void dispatchOrders(order **headO, shipper **headS) {
             if      (o->status == 0) { st = "Pending";   cntFail++; }
             else if (o->status == 1) { st = "Shipping";  cntOk++; }
             else                     { st = "Delivered"; fee = o->fee; cntOk++; }
-            fprintf(f, "  %-6.6s | %-20.20s | %-20.20s | %5.2f kg | %-12.12s | %10.2f\n",
+            fprintf(f, "  %-6.6s | %-20.20s | %-20.20s | %5.2f kg | %-12.12s | %10.2f |\n",
                     o->code, o->orderName, o->customerName, o->weight, st, fee);
         }
         fprintf(f, "\n================================================================================\n");
@@ -308,22 +327,21 @@ void dispatchOrders(order **headO, shipper **headS) {
         fprintf(f, "  - Total assigned weight            : %.2f kg\n", totalWeight);
         fprintf(f, "================================================================================\n");
         fclose(f);
+        setColor(10, 0);
         printf("\n  [OK] Saved to 'dispatch_report.txt'\n");
+        setColor(15, 0);
         system("start notepad dispatch_report.txt");
     }
 
+    setColor(8, 0);
     printf("\n  Press any key to return...");
+    setColor(15, 0);
     _getch();
 }
 
 // ================================================================
 //  CHUC NANG 2: ANIMATION SHIPPER GIAO HANG
-//  * Ban do 30x30 hinh vuong (2 ky tu/o)
-//  * Khong nh�y: dung gotoXY ghi de len man hinh
-//  * Don dau: xuat phat tu kho W(0,0)
-//  * Don tiep: tiep tuc tu vi tri vua giao, tim don GAN NHAT (BFS)
 // ================================================================
-// Ham mo phong qua trinh giao hang bang hoat anh
 void animateDelivery(order **headO, shipper **headS) {
     system("cls");
     enableAnsiControl();
@@ -332,9 +350,13 @@ void animateDelivery(order **headO, shipper **headS) {
     for (order *o = *headO; o != NULL; o = o->next)
         if (o->status == 1) { hasShipping = 1; break; }
     if (!hasShipping) {
+        setColor(12, 0);
         printf("\n  [!] No Shipping orders found!\n");
+        setColor(14, 0);
         printf("      Please run dispatch first (function [1]).\n");
+        setColor(8, 0);
         printf("\n  Press any key to return...");
+        setColor(15, 0);
         _getch(); return;
     }
 
@@ -344,15 +366,12 @@ void animateDelivery(order **headO, shipper **headS) {
     strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
     strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
 
-    /* Ban do nen */
     char baseMap[MAP_SIZE][MAP_SIZE];
     initMap(baseMap);
     placeOrders(baseMap, *headO);
 
-    /* Vi tri hien tai cua shipper - bat dau tu kho */
     int curR = WH_ROW, curC = WH_COL;
 
-    /* Bao cao */
     int  reportCount = 0, totalDone = 0;
     char rCode[100][6]; char rCust[100][30];
     int  rSteps[100];   int  rOk[100];
@@ -360,16 +379,15 @@ void animateDelivery(order **headO, shipper **headS) {
     hideCursor();
     printf("\x1b[2J\x1b[H");
 
-    /* Toa do frame animation co dinh tren terminal (0-based) */
-    const int mapContentStartRow = 5; /* sau 3 dong header + 1 dong trong + vien tren map */
-    const int mapContentStartCol = 3; /* "  |" truoc ky tu o dau tien */
+    const int mapContentStartRow = 5;
+    const int mapContentStartCol = 3;
     const int statusRow = mapContentStartRow + MAP_SIZE + 2;
     const int doneMsgRow = statusRow + 1;
 
     while(1) {
-        goHome();/* Tim don Shipping gan nhat tu vi tri hien tai */
+        goHome();
         order *o = findNearest(*headO, baseMap, curR, curC);
-        if (o == NULL) break;  /* Het don */
+        if (o == NULL) break;
 
         int er = clampVal(o->x, 0, MAP_SIZE - 1);
         int ec = clampVal(o->y, 0, MAP_SIZE - 1);
@@ -384,13 +402,11 @@ void animateDelivery(order **headO, shipper **headS) {
         memcpy(tmpMap, baseMap, sizeof(baseMap));
 
         if (!bfsFind(tmpMap, curR, curC, er, ec, path, &pathLen)) {
-            /* Khong tim duoc duong - bo qua don nay */
             rOk[reportCount] = 0; rSteps[reportCount] = 0; reportCount++;
             o->status = 2;
             continue;
         }
 
-        /* Ve frame 1 lan cho moi don, sau do chi cap nhat o da thay doi */
         {
             char animMap[MAP_SIZE][MAP_SIZE];
             memcpy(animMap, baseMap, sizeof(baseMap));
@@ -405,7 +421,8 @@ void animateDelivery(order **headO, shipper **headS) {
             printf("  +----------------------------------------------------------------+\n\n");
             printMapSquare(animMap);
             printLegendBFS();
-            printf("  Status: Route simulation running (cell updates only).            \n");
+            gotoXY(statusRow, 0);
+            printf("  Status: Route simulation running (cell updates only).            ");
             fflush(stdout);
         }
 
@@ -413,43 +430,52 @@ void animateDelivery(order **headO, shipper **headS) {
             int pr = path[step - 1].x, pc = path[step - 1].y;
             int cr = path[step].x, cc = path[step].y;
 
-            /* O vua di qua: luu vet duong '=' tren moi o di qua (tru kho/vat can) */
             if (baseMap[pr][pc] != SYM_WAREHOUSE && baseMap[pr][pc] != SYM_WALL) {
                 baseMap[pr][pc] = SYM_PATH;
                 gotoXY(mapContentStartRow + pr, mapContentStartCol + pc * 2);
+                setColor(9, 0);
                 printf("%c", SYM_PATH);
+                setColor(15, 0);
             }
 
-            /* O hien tai cua shipper */
             if (baseMap[cr][cc] != SYM_WAREHOUSE) {
                 gotoXY(mapContentStartRow + cr, mapContentStartCol + cc * 2);
+                setColor(11, 0);
                 printf("%c", SYM_SHIPPER);
+                setColor(15, 0);
             }
 
             gotoXY(statusRow, 2);
+            setColor(14, 0);
             printf("  Status: Order %-6.6s moving (%2d/%-2d).                        ",
                    o->code, step, pathLen - 1);
+            setColor(15, 0);
             fflush(stdout);
             Sleep(500);
         }
 
-        /* Giao xong */
         o->status = 2;
         baseMap[er][ec] = SYM_DELIVERED;
         gotoXY(mapContentStartRow + er, mapContentStartCol + ec * 2);
+        setColor(10, 0);
         printf("%c", SYM_DELIVERED);
+        setColor(15, 0);
         gotoXY(doneMsgRow, 2);
+        setColor(10, 0);
         printf("  [DONE] Delivered order %-6.6s to customer %-25.25s",
                o->code, o->customerName);
+        setColor(15, 0);
         fflush(stdout);
         gotoXY(statusRow, 2);
+        setColor(14, 0);
         printf("  Status: Finding next order...                                  ");
+        setColor(15, 0);
         gotoXY(doneMsgRow + 1, 2);
         printf("                                                                  ");
         fflush(stdout);
         Sleep(500);
         totalDone++;
-        curR = er; curC = ec;   /* Cap nhat vi tri */
+        curR = er; curC = ec;
 
         rOk[reportCount] = 1;
         rSteps[reportCount] = pathLen - 1;
@@ -463,43 +489,51 @@ void animateDelivery(order **headO, shipper **headS) {
     initMap(finalMap);
     placeOrders(finalMap, *headO);
 
+    setColor(11, 0);
     printf("\n");
     printf("  +----------------------------------------------------------------+\n");
     printf("  |             DELIVERY COMPLETED - FINAL RESULT                  |\n");
-    printf("  |          Date: %-12s               Time: %-10s                 |\n", dateStr, timeStr);
+    printf("  |          Date: %-12s               Time: %-10s     |\n", dateStr, timeStr);
     printf("  +----------------------------------------------------------------+\n\n");
+    setColor(15, 0);
     printMapSquare(finalMap);
     printLegendBFS();
 
     printf("\n");
+    setColor(11, 0);
     printf("  +------+----------+------------------+------------+\n");
     printf("  |  NO. | ORDER ID | RESULT           | STEPS      |\n");
     printf("  +------+----------+------------------+------------+\n");
+    setColor(15, 0);
     for (int i = 0; i < reportCount; i++) {
-        printf("  | %-4d | %-8s | %-16s | %-9d |\n",
-               i + 1, rCode[i],
-               rOk[i] ? "DELIVERED" : "NO ROUTE",
-               rSteps[i]);
+        printf("  | %-4d | %-8s | ", i + 1, rCode[i]);
+        if (rOk[i]) { setColor(10, 0); printf("%-16s", "DELIVERED"); }
+        else         { setColor(12, 0); printf("%-16s", "NO ROUTE"); }
+        setColor(15, 0);
+        printf(" | %-9d |\n", rSteps[i]);
     }
+    setColor(11, 0);
     printf("  +------+----------+------------------+------------+\n");
     printf("  +-------------------------------------------------+\n");
+    setColor(10, 0);
     printf("  |  Total successful deliveries: %-3d orders       |\n", totalDone);
+    setColor(11, 0);
     printf("  +-------------------------------------------------+\n");
+    setColor(15, 0);
 
-    /* Ghi file */
     FILE *f = fopen("animation_report.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
         fprintf(f, "|                      DELIVERY SIMULATION REPORT                              |\n");
-        fprintf(f, "|                    Date: %-12s         Time: %-10s                           |\n", dateStr, timeStr);
+        fprintf(f, "|                    Date: %-12s         Time: %-10s               |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
-        fprintf(f, "  %-4.4s | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9.9s\n",
+        fprintf(f, "  %-4.4s | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9.9s |\n",
                 "NO.", "ORDER", "ITEM NAME", "CUSTOMER", "RESULT", "STEPS");
         fprintf(f, "  -----+--------+----------------------+----------------------+------------------+-----------\n");
         int idx = 0;
         for (order *o2 = *headO; o2 != NULL && idx < reportCount; o2 = o2->next) {
             if (o2->status != 2) continue;
-            fprintf(f, "  %-4d | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9d\n",
+            fprintf(f, "  %-4d | %-6.6s | %-20.20s | %-20.20s | %-16.16s | %-9d |\n",
                     idx + 1, rCode[idx], o2->orderName, rCust[idx],
                     rOk[idx] ? "DELIVERED" : "NO ROUTE",
                     rSteps[idx]);
@@ -511,20 +545,21 @@ void animateDelivery(order **headO, shipper **headS) {
         fprintf(f, "  - Total no-route orders  : %d\n", reportCount - totalDone);
         fprintf(f, "================================================================================\n");
         fclose(f);
+        setColor(10, 0);
         printf("\n  [OK] Saved to 'animation_report.txt'\n");
+        setColor(15, 0);
         system("start notepad animation_report.txt");
     }
 
+    setColor(8, 0);
     printf("\n  Press any key to return...");
+    setColor(15, 0);
     _getch();
 }
 
 // ================================================================
 //  CHUC NANG 3: TONG QUAN KHO HANG
-//  So do mat bang: 9 khu, moi khu = khoi 3x3 ky hieu ###
-//  Sap xep 3 hang x 3 cot, giua cac khu cach 1 o trong
 // ================================================================
-// Ham hien thi tong quan kho hang va thong tin don hang
 void warehouseOverview(order **headO, shipper **headS) {
     system("cls");
 
@@ -549,79 +584,105 @@ void warehouseOverview(order **headO, shipper **headS) {
     strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
     strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
 
-    /* Thong ke tong quat */
+    setColor(11, 0);
     printf("\n");
     printf("  ============================================================\n");
     printf("  |            WAREHOUSE OVERVIEW - SMART DELIVERY           |\n");
-    printf("  |           Date: %-12s           Time: %-10s              |\n", dateStr, timeStr);
+    printf("  |           Date: %-12s           Time: %-10s    |\n", dateStr, timeStr);
     printf("  ============================================================\n");
-    printf("  Orders   | Total:%-3d  P(wait):%-3d  G(ship):%-3d  D(done):%-3d\n",
-           totalO, cntP, cntG, cntD);
-    printf("  Shipper  | Total:%-3d  Free: %-3d  Busy: %-3d\n\n",
-           totalS, cntFree, cntBusy);
+    setColor(15, 0);
 
-    if (totalO == 0)
+    printf("  Orders   | Total:");
+    setColor(15, 0); printf("%-3d  ", totalO);
+    printf("P(wait):");
+    setColor(12, 0); printf("%-3d  ", cntP);
+    setColor(15, 0); printf("G(ship):");
+    setColor(14, 0); printf("%-3d  ", cntG);
+    setColor(15, 0); printf("D(done):");
+    setColor(10, 0); printf("%-3d\n", cntD);
+    setColor(15, 0);
+
+    printf("  Shipper  | Total:%-3d  Free: ", totalS);
+    setColor(10, 0); printf("%-3d  ", cntFree);
+    setColor(15, 0); printf("Busy: ");
+    setColor(14, 0); printf("%-3d\n\n", cntBusy);
+    setColor(15, 0);
+
+    if (totalO == 0) {
+        setColor(14, 0);
         printf("  >> Warehouse is empty, no orders yet.\n");
-    else if (cntP == 0)
+    } else if (cntP == 0) {
+        setColor(10, 0);
         printf("  >> All orders have been processed!\n");
-    else if (cntP > 5)
+    } else if (cntP > 5) {
+        setColor(12, 0);
         printf("  >> [WARNING] Warehouse overloaded! %d orders are waiting.\n", cntP);
-    else
+    } else {
+        setColor(10, 0);
         printf("  >> Stable. %d orders are waiting for delivery.\n", cntP);
-    if (cntFree == 0 && cntP > 0)
+    }
+    setColor(15, 0);
+
+    if (cntFree == 0 && cntP > 0) {
+        setColor(12, 0);
         printf("  >> [WARNING] No free shipper available!\n");
+        setColor(15, 0);
+    }
 
-    /* ----------------------------------------------------------------
-       SO DO MAT BANG: 9 khu (3 hang x 3 cot)
-       Moi khu = 3 hang ###, ten khu o tren, cach khu ben phai = 3 dau cach
-       Cach khu ben duoi = 1 dong trong
-    ---------------------------------------------------------------- */
+    setColor(11, 0);
     printf("\n");
-    printf("  ============================================================\n");
-    printf("  |                  WAREHOUSE LAYOUT MAP                    |\n");
-    printf("  ============================================================\n\n");
+    printf("  =============================================================\n");
+    printf("  |                  WAREHOUSE LAYOUT MAP                     |\n");
+    printf("  =============================================================\n\n");
+    setColor(15, 0);
 
-    /* Ten cac khu (3x3 = 9 khu) */
     const char *tenKhu[3][3] = {
         {"[KHU A1]", "[KHU A2]", "[KHU A3]"},
         {"[KHU B1]", "[KHU B2]", "[KHU B3]"},
         {"[KHU C1]", "[KHU C2]", "[KHU C3]"}
     };
 
+    setColor(11, 0);
     printf("  +-----------------------------------------------------------+\n");
-    printf("  |                   WAREHOUSE LAYOUT FRAME                 |\n");
+    printf("  |                   WAREHOUSE LAYOUT FRAME                  |\n");
     printf("  +-----------------------------------------------------------+\n");
+    setColor(15, 0);
 
-    /*
-       Moi khu duoc ve thanh 1 o co vien:
-       +---------+
-       | [KHU A1]|
-       |   ###   |
-       |   ###   |
-       |   ###   |
-       +---------+
-    */
     for (int bi = 0; bi < 3; bi++) {
+        setColor(11, 0);
         printf("  |  +---------+    +---------+    +---------+  |\n");
-        printf("  |  | %-8s|    | %-8s|    | %-8s|  |\n",
-               tenKhu[bi][0], tenKhu[bi][1], tenKhu[bi][2]);
+        printf("  |  | ");
+        setColor(14, 0); printf("%-8s", tenKhu[bi][0]);
+        setColor(11, 0); printf("|    | ");
+        setColor(14, 0); printf("%-8s", tenKhu[bi][1]);
+        setColor(11, 0); printf("|    | ");
+        setColor(14, 0); printf("%-8s", tenKhu[bi][2]);
+        setColor(11, 0); printf("|  |\n");
         for (int row = 0; row < 3; row++) {
-            printf("  |  |   ###   |    |   ###   |    |   ###   |  |\n");
+            printf("  |  |   ");
+            setColor(10, 0); printf("###");
+            setColor(11, 0); printf("   |    |   ");
+            setColor(10, 0); printf("###");
+            setColor(11, 0); printf("   |    |   ");
+            setColor(10, 0); printf("###");
+            setColor(11, 0); printf("   |  |\n");
         }
         printf("  |  +---------+    +---------+    +---------+  |\n");
         printf("\n");
     }
+    setColor(11, 0);
     printf("  +-----------------------------------------------------------+\n");
+    setColor(15, 0);
 
-    /* Chu thich */
-    printf("  -----------------------------------------------------------\n");
+    setColor(8, 0);
+    printf("  ------------------------------------------------------------\n");
     printf("  Notes:\n");
     printf("    ### = Storage area (each block is one warehouse zone)\n");
     printf("    [W] = Main warehouse start point at coordinate (0, 0)\n");
     printf("    Total: 9 zones | A1-A3 top row | B1-B3 middle row | C1-C3 bottom row\n");
-    printf("  -----------------------------------------------------------\n");
+    printf("  ------------------------------------------------------------\n");
+    setColor(15, 0);
 
-    /* Ghi file */
     FILE *f = fopen("warehouse_overview.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
@@ -630,7 +691,7 @@ void warehouseOverview(order **headO, shipper **headS) {
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  [ORDERS]    Total: %-3d |  Pending(P): %-3d  |  Shipping(G): %-3d  |  Delivered(D): %-3d\n",
                 totalO, cntP, cntG, cntD);
-        fprintf(f, "  [SHIPPERS]  Total: %-3d |  Free: %-3d        |  Busy: %-3d\n\n",
+        fprintf(f, "  [SHIPPERS]  Total: %-3d |  Free: %-3d        |  Busy: %-3d    |\n\n",
                 totalS, cntFree, cntBusy);
 
         if (totalO == 0) fprintf(f, "  >> Warehouse is empty.\n");
@@ -642,7 +703,7 @@ void warehouseOverview(order **headO, shipper **headS) {
         fprintf(f, "\n--------------------------------------------------------------------------------\n");
         fprintf(f, "  ORDER LIST:\n");
         fprintf(f, "--------------------------------------------------------------------------------\n");
-        fprintf(f, "  %-6s | %-20s | %-20s | %-9s | %-10s | %-8s |\n",
+        fprintf(f, "  %-6s | %-20s | %-20s | %-9s | %-10s | %-8s|\n",
                 "ORDER", "ITEM NAME", "CUSTOMER", "STATUS", "FEE (VND)", "COORD");
         fprintf(f, "  -------+----------------------+----------------------+-----------+------------+----------\n");
         for (order *o = *headO; o != NULL; o = o->next) {
@@ -662,7 +723,7 @@ void warehouseOverview(order **headO, shipper **headS) {
         for (shipper *s = *headS; s != NULL; s = s->next) {
             const char *type = (s->prioritySP==1) ? "Express" : "Normal";
             const char *st   = (s->status==0)     ? "Free"    : "Busy";
-            fprintf(f, "  %-6.6s | %-20.20s | %-14lld | %-11.11s | %-10.10s | %.2f |\n",
+            fprintf(f, "  %-6.6s | %-20.20s | %-14lld | %-11.11s | %-10.10s | %.2f    |\n",
                     s->code, s->Name, s->CCCD, type, st, s->weight);
         }
         if (totalS == 0) fprintf(f, "  (No shippers yet)\n");
@@ -671,18 +732,21 @@ void warehouseOverview(order **headO, shipper **headS) {
         fprintf(f, "  NOTE: P = Pending | G = Shipping | D = Delivered\n");
         fprintf(f, "================================================================================\n");
         fclose(f);
+        setColor(10, 0);
         printf("\n  [OK] Saved to 'warehouse_overview.txt'\n");
+        setColor(15, 0);
         system("start notepad warehouse_overview.txt");
     }
 
+    setColor(8, 0);
     printf("\n  Press any key to return...");
+    setColor(15, 0);
     _getch();
 }
 
 // ================================================================
-//  CHUC NANG 4: GOI Y DUONG DI TOI UU (ban do BFS, map vuong)
+//  CHUC NANG 4: GOI Y DUONG DI TOI UU (ban do BFS)
 // ================================================================
-// Ham goi y tuyen duong giao hang toi uu cho Shipper
 void suggestOptimalRoute(order **headO, shipper **headS) {
     system("cls");
 
@@ -697,14 +761,18 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
     strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", &ti);
     strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &ti);
 
+    setColor(11, 0);
     printf("\n");
     printf("  ============================================================\n");
     printf("  |              OPTIMAL ROUTE SUGGESTION - BFS              |\n");
-    printf("  |           Date: %-12s           Time: %-10s    |\n", dateStr, timeStr);
+    printf("  |           Date: %-12s           Time: %-10s  |\n", dateStr, timeStr);
     printf("  ============================================================\n");
+    setColor(15, 0);
     printf("  Start warehouse: W(%d,%d) | Algorithm: BFS\n\n", WH_ROW, WH_COL);
 
+    setColor(14, 0);
     printf("  [OVERVIEW MAP]\n");
+    setColor(15, 0);
     printMapSquare(baseMap);
     printLegendBFS();
 
@@ -717,10 +785,14 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
         int er = clampVal(o->x, 0, MAP_SIZE - 1);
         int ec = clampVal(o->y, 0, MAP_SIZE - 1);
 
+        setColor(11, 0);
         printf("\n  ----------------------------------------------------------\n");
+        setColor(15, 0);
         printf("  Order %d: %-6s | Customer: %-20s | Coordinate:(%d,%d)\n",
                orderNum, o->code, o->customerName, er, ec);
+        setColor(11, 0);
         printf("  ----------------------------------------------------------\n");
+        setColor(15, 0);
 
         char routeMap[MAP_SIZE][MAP_SIZE];
         memcpy(routeMap, baseMap, sizeof(baseMap));
@@ -733,30 +805,42 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
                 if (routeMap[r][c] == SYM_EMPTY) routeMap[r][c] = SYM_PATH;
             }
             printMapSquare(routeMap);
-            printf("  Distance: %d steps  |  Priority: %s  |  Weight: %.1f kg\n",
-                   pathLen - 1,
-                   (o->priority == 1) ? "EXPRESS" : "NORMAL",
-                   o->weight);
+            printf("  Distance: ");
+            setColor(10, 0); printf("%d steps", pathLen - 1);
+            setColor(15, 0); printf("  |  Priority: ");
+            if (o->priority == 1) { setColor(12, 0); printf("EXPRESS"); }
+            else                  { setColor(14, 0); printf("NORMAL"); }
+            setColor(15, 0); printf("  |  Weight: %.1f kg\n", o->weight);
         } else {
+            setColor(12, 0);
             printf("  [!] NO PATH FOUND (blocked by obstacles)\n");
+            setColor(15, 0);
         }
     }
 
-    if (orderNum == 0)
+    if (orderNum == 0) {
+        setColor(14, 0);
         printf("\n  [!] No Pending orders to suggest!\n");
-    else {
+        setColor(15, 0);
+    } else {
+        setColor(11, 0);
         printf("\n  ============================================================\n");
-        printf("  Total Pending: %d  |  Found: %d  |  Not found: %d\n",
-               orderNum, foundPath, orderNum - foundPath);
+        setColor(15, 0);
+        printf("  Total Pending: %d  |  ", orderNum);
+        setColor(10, 0); printf("Found: %d", foundPath);
+        setColor(15, 0); printf("  |  ");
+        setColor(12, 0); printf("Not found: %d", orderNum - foundPath);
+        setColor(15, 0); printf("\n");
+        setColor(11, 0);
         printf("  ============================================================\n");
+        setColor(15, 0);
     }
 
-    /* Ghi file */
     FILE *f = fopen("route_report.txt", "w");
     if (f) {
         fprintf(f, "================================================================================\n");
         fprintf(f, "|                     OPTIMAL ROUTE SUGGESTION REPORT                          |\n");
-        fprintf(f, "|                 Date: %-12s         Time: %-10s                   |\n", dateStr, timeStr);
+        fprintf(f, "|                 Date: %-12s         Time: %-10s                  |\n", dateStr, timeStr);
         fprintf(f, "================================================================================\n\n");
         fprintf(f, "  Start warehouse: W(%d, %d)  |  Algorithm: BFS (shortest path)\n\n",
                 WH_ROW, WH_COL);
@@ -790,13 +874,18 @@ void suggestOptimalRoute(order **headO, shipper **headS) {
         fprintf(f, "  - Routes not found     : %d\n", num2 - found2);
         fprintf(f, "================================================================================\n");
         fclose(f);
+        setColor(10, 0);
         printf("\n  [OK] Saved to 'route_report.txt'\n");
+        setColor(15, 0);
         system("start notepad route_report.txt");
     }
 
+    setColor(8, 0);
     printf("\n  Press any key to return...");
+    setColor(15, 0);
     _getch();
 }
+
 // Ham ve giao dien Menu Dieu phoi thong minh
 void Draw_CoordinationMenu(int pointer) {
     char *options[] = {
@@ -827,43 +916,43 @@ void Draw_CoordinationMenu(int pointer) {
 // ================================================================
 //  OPTION 3 - MENU CHINH
 // ================================================================
-// Ham xu ly logic chinh cua Dieu phoi thong minh
 int Smart_Coordination(order **headO, shipper **headS) {
     int pointer = 0;
     char key;
 
     system("cls");
     while(1) {
-        goHome();Draw_CoordinationMenu(pointer);
+        goHome(); Draw_CoordinationMenu(pointer);
         key = getch();
 
-        if (key == -32) { // Bat phim mui ten
+        if (key == -32) {
             key = getch();
-            if (key == 72) { // Len
+            if (key == 72) {
                 if (pointer > 0) pointer--;
                 else pointer = 4;
-            } else if (key == 80) { // Xuong
+            } else if (key == 80) {
                 if (pointer < 4) pointer++;
                 else pointer = 0;
             }
-        } 
-        else if (key == 13) { // Phim ENTER
+        }
+        else if (key == 13) {
             system("cls");
-            if (pointer == 4) return 0; // Quay lai Menu chinh
+            if (pointer == 4) return 0;
 
-            // Goi cac ham xu ly thuat toan cua ong
             switch (pointer) {
-                case 0: dispatchOrders(headO, headS); break;
+                case 0: dispatchOrders(headO, headS);     break;
                 case 1: suggestOptimalRoute(headO, headS); break;
-                case 2: warehouseOverview(headO, headS); break;
-                case 3: animateDelivery(headO, headS); break;
+                case 2: warehouseOverview(headO, headS);  break;
+                case 3: animateDelivery(headO, headS);    break;
             }
 
+            setColor(11, 0);
             printf("\n\n  ------------------------------------------\n");
+            setColor(8, 0);
             printf("  Task finished. Press any key to return...");
+            setColor(15, 0);
             getch();
-            system("cls"); // Xoa man hinh truoc khi ve lai menu
+            system("cls");
         }
     }
 }
-
