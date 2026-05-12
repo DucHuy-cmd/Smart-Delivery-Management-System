@@ -4,21 +4,29 @@ shipper *CreateShipper() {
     shipper *newShipper = (shipper*)malloc(sizeof(shipper));
     if(newShipper == NULL) return NULL;
 
+    setColor(9, 0);
     printf("  \xAF Full Name: ");
+    setColor(15, 0);
     fgets(newShipper->Name, sizeof(newShipper->Name), stdin);
     newShipper->Name[strcspn(newShipper->Name, "\n")] = '\0';
 
+    setColor(9, 0);
     printf("  \xAF Citizen ID: ");
+    setColor(15, 0);
     scanf("%lld", &newShipper->CCCD);
     while(getchar() != '\n');
 
+    setColor(9, 0);
     printf("  \xAF Max Transport Weight (kg): ");
+    setColor(15, 0);
     scanf("%lf", &newShipper->weight);
     while(getchar() != '\n');
 
     int type;
     do {
+        setColor(9, 0);
         printf("  \xAF Shipper Type (0: Express, 1: Normal): ");
+        setColor(15, 0);
         scanf("%d", &type);
         while(getchar() != '\n');
     } while(type != 0 && type != 1);
@@ -34,10 +42,6 @@ shipper *CreateShipper() {
 }
 
 // Ham ghi thong tin Shipper vao file
-// Tong chieu rong khung = 108 ky tu (inner = 106)
-// Border : +=========...=========+  (108 chars)
-// Sep    : +---------...---------+  (108 chars)
-// Row    : | col... |             (108 chars)
 void informationShipper(shipper **headS) {
     shipper *p = *headS;
 
@@ -146,7 +150,9 @@ void loadFileShipper(shipper **headS){
 void registerShipper(shipper **headS) {
     int NoS;
     drawHeader("REGISTER NEW SHIPPER");
+    setColor(14, 0);
     printf("\n  [?] How many shippers to register: ");
+    setColor(15, 0);
     scanf("%d", &NoS);
     while(getchar() != '\n');
 
@@ -167,42 +173,47 @@ void registerShipper(shipper **headS) {
         }
     }
     informationShipper(headS);
+    setColor(11, 0);
     printf("\n  ------------------------------------------\n");
+    setColor(10, 0);
     printf("  [!] SUCCESS: %d SHIPPERS REGISTERED.\n", NoS);
+    setColor(15, 0);
 }
 
 // Ham xoa mot Shipper theo ma ID
 void deleteShipper(shipper **headS) {
     if(*headS == NULL) {
-        printf("List is empty");
+        setColor(14, 0);
+        printf("List is empty\n");
+        setColor(15, 0);
         return;
     }
-    shipper *p = *headS;
     char deLShip[5];
+    setColor(14, 0);
     printf("Enter The Shipper ID You Want To Delete: ");
-    while(getchar() != '\n');
-    fgets(deLShip, sizeof(deLShip), stdin);
-    deLShip[strcspn(deLShip, "\n")] = '\0';
-
-    if(strcmp(p->code, deLShip) == 0) {
-        *headS = (*headS)->next;
-        free(p);
-        printf("Delete Successfully!\n");
-        informationShipper(headS);
-        return;
-    }
-    while(p->next != NULL) {
-        shipper *p1 = p->next;
-        if(p->next != NULL && strcmp(p->next->code, deLShip) == 0) {
-            p->next = p1->next;
-            free(p1);
+    setColor(15, 0);
+    scanf(" %19s", deLShip);
+	shipper *p = *headS;
+    shipper *prev = NULL;
+    while (p != NULL) {
+        if (strcmp(p->code, deLShip) == 0) {
+            if (prev == NULL) {
+                *headS = p->next;
+            } else {
+            	prev->next = p->next;
+            }
+            free(p);
+            setColor(10, 0);
             printf("Delete Successfully!\n");
-            informationShipper(headS);
+            setColor(15, 0);
             return;
-        }
+            }
+        prev = p;
         p = p->next;
     }
+    setColor(12, 0);
     printf("Shipper Not Found!!\n");
+    setColor(15, 0);
     informationShipper(headS);
 }
 
@@ -262,17 +273,22 @@ int Shipper_Management(order **headO, shipper **headS) {
                 case 0: registerShipper(headS); break;
                 case 1: deleteShipper(headS);   break;
                 case 2:
+                    setColor(14, 0);
                     printf("Opening Shipper_information.txt in Notepad...\n");
+                    setColor(15, 0);
                     system("notepad Shipper_information.txt");
                     break;
             }
             if(pointer != 2) {
+                setColor(11, 0);
                 printf("\n------------------------------------------\n");
+                setColor(8, 0);
                 printf("Action completed. Press any key to return.");
+                setColor(15, 0);
                 getch();
-                system("cls"); // Xoa man hinh truoc khi ve lai menu
+                system("cls");
             } else {
-                system("cls"); // Xoa man hinh cho truong hop mo notepad
+                system("cls");
             }
         }
     }
